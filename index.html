@@ -1,13 +1,79 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Hello World!</title>
-
+    <title>close-chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Material+Icons&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <h1>💖 Hello World!</h1>
-    <p>Welcome to your Electron application.</p>
+    <div id="appContainer">
+      <!-- Sidebar (chat list) -->
+      <aside id="sidebar" class="custom-scrollbar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">chats</span>
+        </div>
+        <div id="chatList" class="chat-list">
+          <!-- Chat items populated by renderer.ts -->
+        </div>
+      </aside>
+
+      <!-- Main chat panel -->
+      <div id="chatPanel">
+        <!-- Header -->
+        <header id="header">
+          <div class="header-left">
+            <button id="hamburgerBtn" class="hamburger-btn" title="Toggle chats">
+              <span class="material-icons">menu</span>
+            </button>
+            <span class="brand">bitchat / <span class="username">@anon7698</span></span>
+          </div>
+          <div class="header-right">
+            <span class="channel">#mesh</span>
+            <div class="status-group">
+              <div class="status-dot"></div>
+              <span class="material-icons user-icon">group</span>
+              <span class="user-count" id="userCount">0</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Chat messages area -->
+        <main id="chatArea" class="custom-scrollbar"></main>
+
+        <!-- Dark/Light mode toggle -->
+        <div class="theme-toggle-container">
+          <button id="themeToggle" class="theme-toggle-btn">
+            <span class="material-icons" id="themeIcon">light_mode</span>
+          </button>
+        </div>
+
+        <!-- Input footer -->
+        <footer id="footer">
+          <div class="input-row">
+            <div class="input-wrapper">
+              <div class="cursor-blink"></div>
+              <input
+                type="text"
+                id="messageInput"
+                placeholder="type a message..."
+                autofocus
+              />
+            </div>
+            <div class="input-actions">
+              <button class="action-btn" id="cameraBtn">
+                <span class="material-icons">photo_camera</span>
+              </button>
+              <button class="action-btn mic-btn" id="micBtn">
+                <span class="material-icons">mic</span>
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </div>
+
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>
