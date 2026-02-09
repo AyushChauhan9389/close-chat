@@ -12,8 +12,10 @@ let mainWindow: BrowserWindow;
 const COLLAPSED_WIDTH = 400;
 const EXPANDED_WIDTH = 650;
 const WINDOW_HEIGHT = 500;
-const SIDEBAR_WIDTH = EXPANDED_WIDTH - COLLAPSED_WIDTH; // 250px
+const PEOPLE_PANEL_HEIGHT = 250;
+const EXPANDED_HEIGHT = WINDOW_HEIGHT + PEOPLE_PANEL_HEIGHT; // 750px
 let sidebarOpen = false;
+let peopleOpen = false;
 
 const createWindow = () => {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -46,23 +48,30 @@ ipcMain.on('set-movable', (_event, movable: boolean) => {
   }
 });
 
+function applyWindowBounds(): void {
+  if (!mainWindow) return;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+
+  const w = sidebarOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
+  const h = peopleOpen ? EXPANDED_HEIGHT : WINDOW_HEIGHT;
+  const x = screenW - w;
+  const y = screenH - h;
+
+  mainWindow.setBounds({ x, y, width: w, height: h }, true);
+}
+
 ipcMain.handle('toggle-sidebar', () => {
   if (!mainWindow) return sidebarOpen;
-
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   sidebarOpen = !sidebarOpen;
-
-  if (sidebarOpen) {
-    const newX = screenW - EXPANDED_WIDTH;
-    const newY = screenH - WINDOW_HEIGHT;
-    mainWindow.setBounds({ x: newX, y: newY, width: EXPANDED_WIDTH, height: WINDOW_HEIGHT }, true);
-  } else {
-    const newX = screenW - COLLAPSED_WIDTH;
-    const newY = screenH - WINDOW_HEIGHT;
-    mainWindow.setBounds({ x: newX, y: newY, width: COLLAPSED_WIDTH, height: WINDOW_HEIGHT }, true);
-  }
-
+  applyWindowBounds();
   return sidebarOpen;
+});
+
+ipcMain.handle('toggle-people', () => {
+  if (!mainWindow) return peopleOpen;
+  peopleOpen = !peopleOpen;
+  applyWindowBounds();
+  return peopleOpen;
 });
 
 // This method will be called when Electron has finished

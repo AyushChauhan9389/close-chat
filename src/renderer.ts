@@ -5,6 +5,7 @@ declare global {
     electronAPI: {
       setMovable: (movable: boolean) => void;
       toggleSidebar: () => Promise<boolean>;
+      togglePeople: () => Promise<boolean>;
     };
   }
 }
@@ -20,24 +21,190 @@ window.addEventListener('contextmenu', (e) => {
   if (e.button === 1) e.preventDefault();
 });
 
-// ── DOM refs ──
+// ── DOM refs: Auth ──
+const authOverlay = document.getElementById('authOverlay') as HTMLElement;
+const loginForm = document.getElementById('loginForm') as HTMLElement;
+const signupForm = document.getElementById('signupForm') as HTMLElement;
+const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
+const signupBtn = document.getElementById('signupBtn') as HTMLButtonElement;
+const showSignupBtn = document.getElementById('showSignup') as HTMLButtonElement;
+const showLoginBtn = document.getElementById('showLogin') as HTMLButtonElement;
+const loginUser = document.getElementById('loginUser') as HTMLInputElement;
+const loginPass = document.getElementById('loginPass') as HTMLInputElement;
+const loginError = document.getElementById('loginError') as HTMLElement;
+const signupUser = document.getElementById('signupUser') as HTMLInputElement;
+const signupEmail = document.getElementById('signupEmail') as HTMLInputElement;
+const signupPass = document.getElementById('signupPass') as HTMLInputElement;
+const signupConfirm = document.getElementById('signupConfirm') as HTMLInputElement;
+const signupError = document.getElementById('signupError') as HTMLElement;
+
+// ── DOM refs: App ──
+const appContainer = document.getElementById('appContainer') as HTMLElement;
 const chatArea = document.getElementById('chatArea') as HTMLElement;
 const messageInput = document.getElementById('messageInput') as HTMLInputElement;
 const themeToggle = document.getElementById('themeToggle') as HTMLButtonElement;
 const themeIcon = document.getElementById('themeIcon') as HTMLSpanElement;
 const hamburgerBtn = document.getElementById('hamburgerBtn') as HTMLButtonElement;
 const chatList = document.getElementById('chatList') as HTMLElement;
+const peopleToggle = document.getElementById('peopleToggle') as HTMLElement;
+const peopleList = document.getElementById('peopleList') as HTMLElement;
+const peopleCountEl = document.getElementById('peopleCount') as HTMLElement;
+const userCountEl = document.getElementById('userCount') as HTMLElement;
 
 // ── State ──
-const currentUser = '@anon' + Math.floor(1000 + Math.random() * 9000);
+let currentUser = '@anon' + Math.floor(1000 + Math.random() * 9000);
 let isDark = true;
 let sidebarOpen = false;
+let peopleOpen = false;
 
-// Update header with generated username
+// Hide app until authenticated
+appContainer.style.display = 'none';
+
 const brandEl = document.querySelector('.brand') as HTMLElement;
-if (brandEl) {
-  brandEl.innerHTML = `bitchat / <span class="username">${currentUser}</span>`;
+
+// ══════════════════════════════════════
+// Auth Logic
+// ══════════════════════════════════════
+
+function showAuthError(el: HTMLElement, msg: string): void {
+  el.textContent = `*** ${msg}`;
+  setTimeout(() => { el.textContent = ''; }, 4000);
 }
+
+function dismissAuth(username: string): void {
+  currentUser = '@' + username.replace(/^@/, '');
+  (window as any).__currentUser = currentUser;
+
+  if (brandEl) {
+    brandEl.innerHTML = `bitchat / <span class="username">${currentUser}</span>`;
+  }
+
+  // Fade out overlay, reveal app
+  authOverlay.style.transition = 'opacity 0.3s ease';
+  authOverlay.style.opacity = '0';
+  setTimeout(() => {
+    authOverlay.classList.add('hidden');
+    appContainer.style.display = 'flex';
+    messageInput.focus();
+    initChat();
+  }, 300);
+}
+
+// Switch between login / signup
+showSignupBtn.addEventListener('click', () => {
+  loginForm.style.display = 'none';
+  signupForm.style.display = 'flex';
+  loginError.textContent = '';
+  signupUser.focus();
+});
+
+showLoginBtn.addEventListener('click', () => {
+  signupForm.style.display = 'none';
+  loginForm.style.display = 'flex';
+  signupError.textContent = '';
+  loginUser.focus();
+});
+
+// Login
+function handleLogin(): void {
+  const user = loginUser.value.trim();
+  const pass = loginPass.value;
+
+  if (!user) {
+    showAuthError(loginError, 'username required');
+    loginUser.focus();
+    return;
+  }
+  if (!pass) {
+    showAuthError(loginError, 'password required');
+    loginPass.focus();
+    return;
+  }
+  if (user.length < 3) {
+    showAuthError(loginError, 'username too short (min 3)');
+    loginUser.focus();
+    return;
+  }
+
+  // Simulate auth delay
+  loginBtn.classList.add('loading');
+  loginBtn.textContent = 'connecting...';
+  setTimeout(() => {
+    loginBtn.classList.remove('loading');
+    loginBtn.textContent = 'connect';
+    dismissAuth(user);
+  }, 800);
+}
+
+loginBtn.addEventListener('click', handleLogin);
+loginPass.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleLogin();
+});
+loginUser.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') loginPass.focus();
+});
+
+// Signup
+function handleSignup(): void {
+  const user = signupUser.value.trim();
+  const email = signupEmail.value.trim();
+  const pass = signupPass.value;
+  const confirm = signupConfirm.value;
+
+  if (!user) {
+    showAuthError(signupError, 'username required');
+    signupUser.focus();
+    return;
+  }
+  if (user.length < 3) {
+    showAuthError(signupError, 'username too short (min 3)');
+    signupUser.focus();
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    showAuthError(signupError, 'valid email required');
+    signupEmail.focus();
+    return;
+  }
+  if (!pass) {
+    showAuthError(signupError, 'password required');
+    signupPass.focus();
+    return;
+  }
+  if (pass.length < 6) {
+    showAuthError(signupError, 'password too short (min 6)');
+    signupPass.focus();
+    return;
+  }
+  if (pass !== confirm) {
+    showAuthError(signupError, 'passwords do not match');
+    signupConfirm.focus();
+    return;
+  }
+
+  // Simulate registration delay
+  signupBtn.classList.add('loading');
+  signupBtn.textContent = 'registering...';
+  setTimeout(() => {
+    signupBtn.classList.remove('loading');
+    signupBtn.textContent = 'register';
+    dismissAuth(user);
+  }, 1000);
+}
+
+signupBtn.addEventListener('click', handleSignup);
+signupConfirm.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleSignup();
+});
+signupUser.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') signupEmail.focus();
+});
+signupEmail.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') signupPass.focus();
+});
+signupPass.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') signupConfirm.focus();
+});
 
 // ── Helpers ──
 function getTimestamp(): string {
@@ -208,6 +375,77 @@ hamburgerBtn.addEventListener('click', async () => {
   }
 });
 
+// ── People toggle ──
+peopleToggle.addEventListener('click', async () => {
+  const isOpen = await window.electronAPI.togglePeople();
+  peopleOpen = isOpen;
+  if (isOpen) {
+    document.body.classList.add('people-open');
+  } else {
+    document.body.classList.remove('people-open');
+  }
+});
+
+// ── Demo people list ──
+interface PersonEntry {
+  name: string;
+  status: 'online' | 'idle' | 'offline';
+  role?: string;
+  isBot?: boolean;
+  isSelf?: boolean;
+}
+
+const demoPeople: PersonEntry[] = [
+  { name: '@mod_bot', status: 'online', role: 'bot', isBot: true },
+  { name: '@satoshi', status: 'online' },
+  { name: '@node_runner', status: 'online' },
+  { name: '@cryptokid', status: 'idle' },
+  { name: '@meshwalker', status: 'online' },
+  { name: '@darknode', status: 'idle' },
+  { name: '@p2p_larry', status: 'offline' },
+  { name: '@ghostuser', status: 'offline' },
+];
+
+function renderPeopleList(): void {
+  // Add self to the list
+  const allPeople: PersonEntry[] = [
+    { name: getCurrentUser(), status: 'online', role: 'you', isSelf: true },
+    ...demoPeople,
+  ];
+
+  // Sort: online first, then idle, then offline
+  const order = { online: 0, idle: 1, offline: 2 };
+  allPeople.sort((a, b) => {
+    if (a.isSelf) return -1;
+    if (b.isSelf) return 1;
+    return order[a.status] - order[b.status];
+  });
+
+  const onlineCount = allPeople.filter((p) => p.status === 'online').length;
+
+  peopleList.innerHTML = '';
+  allPeople.forEach((person) => {
+    const item = document.createElement('div');
+    item.className = 'person-item';
+
+    let nameClass = 'person-name';
+    if (person.isBot) nameClass += ' is-bot';
+    if (person.isSelf) nameClass += ' is-self';
+
+    item.innerHTML = `
+      <div class="person-status ${person.status}"></div>
+      <span class="${nameClass}">${person.name}</span>
+      ${person.role ? `<span class="person-role">${person.role}</span>` : ''}
+    `;
+
+    peopleList.appendChild(item);
+  });
+
+  // Update counts
+  peopleCountEl.textContent = `${onlineCount} online`;
+  userCountEl.textContent = String(onlineCount);
+}
+
 // ── Demo chat list ──
 interface ChatEntry {
   name: string;
@@ -274,10 +512,10 @@ function renderChatList(): void {
   });
 }
 
-// ── Initial messages (simulate startup) ──
-function init(): void {
-  (window as any).__currentUser = currentUser;
+// ── Initial messages (simulate startup after auth) ──
+function initChat(): void {
   renderChatList();
+  renderPeopleList();
 
   addMessage(getCurrentUser(), 'hi', 'user');
 
@@ -293,5 +531,3 @@ function init(): void {
     addMessage('@mod_bot', 'Welcome to the terminal. Type /help for commands.', 'bot');
   }, 1500);
 }
-
-init();
