@@ -8,6 +8,104 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Material+Icons&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- Auth Overlay -->
+    <div id="authOverlay">
+      <div class="auth-card">
+        <!-- Login Form -->
+        <div id="loginForm" class="auth-form">
+          <div class="auth-header">
+            <span class="auth-logo">bitchat</span>
+            <span class="auth-subtitle">// login</span>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label" for="loginUser">> username</label>
+            <div class="auth-input-wrap">
+              <div class="auth-cursor"></div>
+              <input type="text" id="loginUser" class="auth-input" placeholder="enter username..." autocomplete="off" autofocus />
+            </div>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label" for="loginPass">> password</label>
+            <div class="auth-input-wrap">
+              <div class="auth-cursor"></div>
+              <input type="password" id="loginPass" class="auth-input" placeholder="enter password..." />
+            </div>
+          </div>
+
+          <div id="loginError" class="auth-error"></div>
+
+          <button id="loginBtn" class="auth-btn">connect</button>
+
+          <div class="auth-switch">
+            <span class="auth-switch-text">no account?</span>
+            <button id="showSignup" class="auth-switch-btn">register</button>
+          </div>
+        </div>
+
+        <!-- Signup Form -->
+        <div id="signupForm" class="auth-form" style="display: none;">
+          <div class="auth-header">
+            <span class="auth-logo">bitchat</span>
+            <span class="auth-subtitle">// register</span>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label" for="signupUser">> username</label>
+            <div class="auth-input-wrap">
+              <div class="auth-cursor"></div>
+              <input type="text" id="signupUser" class="auth-input" placeholder="choose username..." autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label" for="signupEmail">> email</label>
+            <div class="auth-input-wrap">
+              <div class="auth-cursor"></div>
+              <input type="email" id="signupEmail" class="auth-input" placeholder="enter email..." autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label" for="signupPass">> password</label>
+            <div class="auth-input-wrap">
+              <div class="auth-cursor"></div>
+              <input type="password" id="signupPass" class="auth-input" placeholder="choose password..." />
+            </div>
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label" for="signupConfirm">> confirm</label>
+            <div class="auth-input-wrap">
+              <div class="auth-cursor"></div>
+              <input type="password" id="signupConfirm" class="auth-input" placeholder="confirm password..." />
+            </div>
+          </div>
+
+          <div id="signupError" class="auth-error"></div>
+
+          <button id="signupBtn" class="auth-btn">register</button>
+
+          <div class="auth-switch">
+            <span class="auth-switch-text">have an account?</span>
+            <button id="showLogin" class="auth-switch-btn">login</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- People Panel (expands upward) -->
+    <div id="peoplePanel">
+      <div class="people-header">
+        <span class="people-title">online</span>
+        <span class="people-count" id="peopleCount">0</span>
+      </div>
+      <div id="peopleList" class="people-list custom-scrollbar">
+        <!-- Populated by renderer.ts -->
+      </div>
+    </div>
+
     <div id="appContainer">
       <!-- Sidebar (chat list) -->
       <aside id="sidebar" class="custom-scrollbar">
@@ -31,7 +129,7 @@
           </div>
           <div class="header-right">
             <span class="channel">#mesh</span>
-            <div class="status-group">
+            <div class="status-group" id="peopleToggle" title="Show online users">
               <div class="status-dot"></div>
               <span class="material-icons user-icon">group</span>
               <span class="user-count" id="userCount">0</span>
