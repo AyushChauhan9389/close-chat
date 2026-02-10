@@ -1,9 +1,6 @@
 import { app, BrowserWindow, screen, ipcMain } from "electron";
 import path from "path";
 
-app.commandLine.appendSwitch("disable-http-cache");
-app.commandLine.appendSwitch("disk-cache-size", "0");
-
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
@@ -45,7 +42,7 @@ const createWindow = () => {
     );
   }
 
-  mainWindow.webContents.openDevTools({ mode: "detach" });
+  // mainWindow.webContents.openDevTools({ mode: "detach" });
 };
 
 ipcMain.on("resize-window", (_event, width: number, height: number) => {
