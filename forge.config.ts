@@ -8,6 +8,7 @@ import { VitePlugin } from 'electron-forge-plugin-vite';
 const config: ForgeConfig = {
   packagerConfig: {
     icon: './assets/logo',
+    executableName: 'close-chat',
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
