@@ -1,7 +1,7 @@
 import './index.css';
 import * as api from './api';
 import { connectWs, disconnectWs, sendWs, onWs, isWsConnected } from './ws';
-import type { User, Channel, Message, ChannelMember, Invite } from './api';
+import type { User, Channel, Message, ChannelMember, Invite, DmChannel } from './api';
 
 declare global {
   interface Window {
@@ -88,6 +88,7 @@ const COMMANDS = [
   { name: '/add', desc: 'Add user to channel (admin)', usage: '<username>' },
   { name: '/kick', desc: 'Remove user from channel (admin)', usage: '<username>' },
   { name: '/joincode', desc: 'Join via invite code', usage: '<code>' },
+  { name: '/dm', desc: 'Direct message a user', usage: '<username>' },
 ];
 
 // ── State ──
@@ -363,6 +364,7 @@ function handleCommand(input: string): boolean {
       addMessage('', 'system: /add <username> - Add user to channel (admin)', 'system');
       addMessage('', 'system: /kick <username> - Remove user from channel (admin)', 'system');
       addMessage('', 'system: /joincode <code> - Join channel via invite code', 'system');
+      addMessage('', 'system: /dm <username> - Direct message a user', 'system');
       return true;
 
     case '/clear':
@@ -489,6 +491,15 @@ function handleCommand(input: string): boolean {
         handleJoinByInviteCode(parts[1]);
       } else {
         addMessage('', 'system: Usage: /joincode <invite-code>', 'system');
+      }
+      return true;
+
+    case '/dm':
+      if (parts.length > 1) {
+        const username = parts[1].replace(/^@/, '');
+        handleDm(username);
+      } else {
+        addMessage('', 'system: Usage: /dm <username>', 'system');
       }
       return true;
 
@@ -662,6 +673,36 @@ async function handleJoinByInviteCode(code: string): Promise<void> {
     switchToChannel(channel);
   } catch (err: any) {
     addMessage('', `system: Failed to join via invite: ${err.message}`, 'system');
+  }
+}
+
+// ── Direct message ──
+async function handleDm(username: string): Promise<void> {
+  try {
+    // Search for the user first
+    const results = await api.searchUsers(username);
+    const exact = results.find((u) => u.username.toLowerCase() === username.toLowerCase());
+    if (!exact) {
+      addMessage('', `system: User @${username} not found`, 'system');
+      return;
+    }
+
+    // Get or create DM channel
+    const { channel, created } = await api.getOrCreateDm(exact.id);
+    if (created) {
+      addMessage('', `system: Started DM with @${exact.username}`, 'system');
+    } else {
+      addMessage('', `system: Opened DM with @${exact.username}`, 'system');
+    }
+
+    // Attach recipient info for display
+    channel.recipient = { id: exact.id, username: exact.username, status: exact.status };
+
+    // Reload channels/DMs and switch
+    await loadChannels();
+    switchToChannel(channel);
+  } catch (err: any) {
+    addMessage('', `system: Failed to DM @${username}: ${err.message}`, 'system');
   }
 }
 
@@ -1061,7 +1102,44 @@ function renderPeopleSearchResults(results: User[] | null): void {
 
 async function loadChannels(): Promise<void> {
   try {
-    channels = await api.listChannels();
+    const [chans, dms] = await Promise.all([api.listChannels(), api.listDms()]);
+
+    // Merge DMs into channels list with recipient info
+    const dmChannels: Channel[] = dms.map((dm) => ({
+      id: dm.id,
+      name: dm.name,
+      type: dm.type,
+      lastMessage: dm.lastMessage,
+      unreadCount: dm.unreadCount,
+      recipient: dm.recipient,
+    }));
+
+    // Combine: regular channels + DMs (deduplicate by id)
+    const allIds = new Set<number>();
+    const merged: Channel[] = [];
+
+    // Add regular channels first
+    for (const ch of chans) {
+      if (!allIds.has(ch.id)) {
+        allIds.add(ch.id);
+        // If this is a DM, try to find recipient from DM list
+        if (ch.type === 'dm') {
+          const dmInfo = dms.find((d) => d.id === ch.id);
+          if (dmInfo) ch.recipient = dmInfo.recipient;
+        }
+        merged.push(ch);
+      }
+    }
+
+    // Add any DMs not already in the regular list
+    for (const dm of dmChannels) {
+      if (!allIds.has(dm.id)) {
+        allIds.add(dm.id);
+        merged.push(dm);
+      }
+    }
+
+    channels = merged;
     renderChatList();
   } catch (err: any) {
     addMessage('', `system: Failed to load channels: ${err.message}`, 'system');
@@ -1069,6 +1147,13 @@ async function loadChannels(): Promise<void> {
 }
 
 let channelSearchFilter = '';
+
+function getChannelDisplayName(ch: Channel): string {
+  if (ch.type === 'dm') {
+    return ch.recipient ? `@${ch.recipient.username}` : `@${ch.name}`;
+  }
+  return `#${ch.name}`;
+}
 
 function renderChatList(): void {
   chatList.innerHTML = '';
@@ -1084,7 +1169,12 @@ function renderChatList(): void {
 
   // Filter channels
   const filtered = channelSearchFilter
-    ? channels.filter((ch) => ch.name.toLowerCase().includes(channelSearchFilter.toLowerCase()))
+    ? channels.filter((ch) => {
+        const q = channelSearchFilter.toLowerCase();
+        if (ch.name.toLowerCase().includes(q)) return true;
+        if (ch.type === 'dm' && ch.recipient && ch.recipient.username.toLowerCase().includes(q)) return true;
+        return false;
+      })
     : channels;
 
   if (filtered.length === 0 && channelSearchFilter) {
@@ -1098,8 +1188,10 @@ function renderChatList(): void {
     const item = document.createElement('div');
     item.className = 'chat-item' + (ch.id === activeChannelId ? ' active' : '');
 
-    const displayName = ch.type === 'dm' ? `@${ch.name}` : `#${ch.name}`;
-    const initials = ch.name.slice(0, 2).toUpperCase();
+    const displayName = getChannelDisplayName(ch);
+    const initials = ch.type === 'dm' && ch.recipient
+      ? ch.recipient.username.slice(0, 2).toUpperCase()
+      : ch.name.slice(0, 2).toUpperCase();
     const lastMsg = ch.lastMessage;
     const preview = lastMsg ? lastMsg.content : '';
     const time = lastMsg?.createdAt ? formatTime(lastMsg.createdAt) : '';
@@ -1166,7 +1258,7 @@ async function switchToChannel(ch: Channel): Promise<void> {
   // Update header channel
   const channelEl = document.querySelector('.channel') as HTMLElement;
   if (channelEl) {
-    channelEl.textContent = ch.type === 'dm' ? `@${ch.name}` : `#${ch.name}`;
+    channelEl.textContent = getChannelDisplayName(ch);
   }
 
   // Mark as read
@@ -1185,7 +1277,7 @@ async function switchToChannel(ch: Channel): Promise<void> {
 
   // Clear chat and load history
   chatArea.innerHTML = '';
-  addMessage('', `system: switched to ${ch.type === 'dm' ? '@' : '#'}${ch.name}`, 'system');
+  addMessage('', `system: switched to ${getChannelDisplayName(ch)}`, 'system');
 
   try {
     const messages = await api.getMessages(ch.id, { limit: 50 });

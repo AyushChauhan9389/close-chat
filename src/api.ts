@@ -36,6 +36,22 @@ export interface Channel {
   unreadCount?: number;
   members?: number[];
   role?: "admin" | "member";
+  recipient?: DmRecipient;
+}
+
+export interface DmRecipient {
+  id: number;
+  username: string;
+  status: string;
+}
+
+export interface DmChannel {
+  id: number;
+  name: string;
+  type: "dm";
+  recipient: DmRecipient;
+  lastMessage: ChannelLastMessage | null;
+  unreadCount: number;
 }
 
 export interface ChannelMember {
@@ -333,6 +349,22 @@ export async function sendMessage(
 
 export async function markChannelRead(id: number | string): Promise<void> {
   await apiFetch<void>(`/api/channels/${id}/read`, { method: "POST" });
+}
+
+// ══════════════════════════════════════
+// DM endpoints
+// ══════════════════════════════════════
+
+export async function getOrCreateDm(userId: number): Promise<{ channel: Channel; created: boolean }> {
+  const data = await apiFetch<{ channel: Channel; created: boolean }>(`/api/dm/${userId}`, {
+    method: "POST",
+  });
+  return data;
+}
+
+export async function listDms(): Promise<DmChannel[]> {
+  const data = await apiFetch<{ dms: DmChannel[] }>("/api/dm/");
+  return data.dms || [];
 }
 
 // ── WebSocket URL helper ──
