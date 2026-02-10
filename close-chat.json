@@ -1,0 +1,779 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Elysia Documentation",
+    "description": "Development documentation",
+    "version": "0.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "getIndex"
+      }
+    },
+    "/api/auth/signup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register new user",
+        "description": "Creates a new user account and returns JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "minLength": 3,
+                    "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9_]+$",
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 6,
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "minLength": 3,
+                    "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9_]+$",
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 6,
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "minLength": 3,
+                    "maxLength": 20,
+                    "pattern": "^[a-zA-Z0-9_]+$",
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 6,
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user",
+                    "token"
+                  ],
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "username",
+                        "email",
+                        "status",
+                        "createdAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Response for status 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiAuthSignup"
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login user",
+        "description": "Authenticates user and returns JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "user",
+                    "token"
+                  ],
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "username",
+                        "email",
+                        "status",
+                        "createdAt"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Response for status 401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiAuthLogin"
+      }
+    },
+    "/api/auth/verify": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify token",
+        "description": "Verifies JWT token and returns user data",
+        "operationId": "getApiAuthVerify"
+      }
+    },
+    "/api/users/": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List all users",
+        "description": "Returns all users with presence status (for people panel)",
+        "operationId": "getApiUsers"
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get current user",
+        "description": "Returns the authenticated user profile",
+        "operationId": "getApiUsersMe"
+      },
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update current user",
+        "description": "Update username or status of authenticated user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "minLength": 3,
+                    "maxLength": 20,
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "online",
+                      "idle",
+                      "offline"
+                    ]
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "minLength": 3,
+                    "maxLength": 20,
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "online",
+                      "idle",
+                      "offline"
+                    ]
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "minLength": 3,
+                    "maxLength": 20,
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "online",
+                      "idle",
+                      "offline"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchApiUsersMe"
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user by ID",
+        "description": "Returns a specific user by their ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "getApiUsersById"
+      }
+    },
+    "/api/channels/": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "List user channels",
+        "description": "Returns channels the user is a member of (for sidebar)",
+        "operationId": "getApiChannels"
+      },
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Create channel",
+        "description": "Create a new channel or DM",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "properties": {
+                  "name": {
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "channel",
+                      "dm"
+                    ]
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "properties": {
+                  "name": {
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "channel",
+                      "dm"
+                    ]
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "type"
+                ],
+                "properties": {
+                  "name": {
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "channel",
+                      "dm"
+                    ]
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiChannels"
+      }
+    },
+    "/api/channels/{id}": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Get channel",
+        "description": "Get channel details by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "getApiChannelsById"
+      }
+    },
+    "/api/channels/{id}/join": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Join channel",
+        "description": "Join a channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "postApiChannelsByIdJoin"
+      }
+    },
+    "/api/channels/{id}/leave": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Leave channel",
+        "description": "Leave a channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "postApiChannelsByIdLeave"
+      }
+    },
+    "/api/channels/{id}/members": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Get channel members",
+        "description": "List all members of a channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "getApiChannelsByIdMembers"
+      }
+    },
+    "/api/channels/{id}/messages": {
+      "get": {
+        "tags": [
+          "Messages"
+        ],
+        "summary": "Get message history",
+        "description": "Get paginated message history for a channel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "getApiChannelsByIdMessages"
+      },
+      "post": {
+        "tags": [
+          "Messages"
+        ],
+        "summary": "Send message",
+        "description": "Send a text message to a channel (REST fallback, prefer WebSocket)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "bot",
+                      "system"
+                    ]
+                  }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "bot",
+                      "system"
+                    ]
+                  }
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "content"
+                ],
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "bot",
+                      "system"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiChannelsByIdMessages"
+      }
+    },
+    "/api/channels/{id}/read": {
+      "post": {
+        "tags": [
+          "Messages"
+        ],
+        "summary": "Mark channel as read",
+        "description": "Mark all messages in a channel as read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "postApiChannelsByIdRead"
+      }
+    },
+    "/ws": {
+      "ws": {
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "wsWs"
+      }
+    }
+  },
+  "components": {
+    "schemas": {}
+  }
+}
