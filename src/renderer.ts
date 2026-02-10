@@ -8,6 +8,7 @@ declare global {
     electronAPI: {
       setMovable: (movable: boolean) => void;
       setIgnoreMouseEvents: (ignore: boolean, opts?: { forward: boolean }) => void;
+      resizeWindow: (width: number, height: number) => void;
     };
   }
 }
@@ -706,19 +707,43 @@ themeToggle.addEventListener('click', () => {
 });
 
 // ── Sidebar toggle ──
+const sidebarCloseBtn = document.getElementById('sidebarCloseBtn') as HTMLButtonElement;
+
 hamburgerBtn.addEventListener('click', () => {
   sidebarOpen = !sidebarOpen;
   document.body.classList.toggle('sidebar-open', sidebarOpen);
 });
 
+sidebarCloseBtn.addEventListener('click', () => {
+  sidebarOpen = false;
+  document.body.classList.remove('sidebar-open');
+});
+
+// Close sidebar when clicking outside of it
+document.addEventListener('click', (e) => {
+  if (!sidebarOpen) return;
+  const sidebar = document.getElementById('sidebar') as HTMLElement;
+  const target = e.target as HTMLElement;
+  if (!sidebar.contains(target) && target !== hamburgerBtn && !hamburgerBtn.contains(target)) {
+    sidebarOpen = false;
+    document.body.classList.remove('sidebar-open');
+  }
+});
+
 // ── People toggle ──
+const APP_WIDTH = 400;
+const APP_HEIGHT = 500;
+const PEOPLE_PANEL_HEIGHT = 250;
+
 peopleToggle.addEventListener('click', () => {
   peopleOpen = !peopleOpen;
   document.body.classList.toggle('people-open', peopleOpen);
   if (peopleOpen) {
-    // Refresh people list and channel members when opening
+    window.electronAPI.resizeWindow(APP_WIDTH, APP_HEIGHT + PEOPLE_PANEL_HEIGHT);
     loadUsers();
     loadChannelMembers();
+  } else {
+    window.electronAPI.resizeWindow(APP_WIDTH, APP_HEIGHT);
   }
 });
 

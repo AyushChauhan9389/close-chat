@@ -13,19 +13,18 @@ if (require("electron-squirrel-startup")) {
 
 let mainWindow: BrowserWindow;
 
-// Fixed max dimensions — window never resizes
-const MAX_WIDTH = 650;
-const MAX_HEIGHT = 750;
+const APP_WIDTH = 400;
+const APP_HEIGHT = 500;
 
 const createWindow = () => {
   const { width: screenW, height: screenH } =
     screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
-    width: MAX_WIDTH,
-    height: MAX_HEIGHT,
-    x: screenW - MAX_WIDTH,
-    y: screenH - MAX_HEIGHT,
+    width: APP_WIDTH,
+    height: APP_HEIGHT,
+    x: screenW - APP_WIDTH,
+    y: screenH - APP_HEIGHT,
     // skipTaskbar: true,
     // movable: false,
     resizable: false,
@@ -48,6 +47,15 @@ const createWindow = () => {
 
   mainWindow.webContents.openDevTools({ mode: "detach" });
 };
+
+ipcMain.on("resize-window", (_event, width: number, height: number) => {
+  if (mainWindow) {
+    const bounds = mainWindow.getBounds();
+    // Grow/shrink upward: keep the bottom-right corner pinned
+    const newY = bounds.y + bounds.height - height;
+    mainWindow.setBounds({ x: bounds.x, y: newY, width, height });
+  }
+});
 
 ipcMain.on("set-movable", (_event, movable: boolean) => {
   if (mainWindow) {
