@@ -69,6 +69,26 @@ const peopleToggle = document.getElementById('peopleToggle') as HTMLElement;
 const peopleList = document.getElementById('peopleList') as HTMLElement;
 const peopleCountEl = document.getElementById('peopleCount') as HTMLElement;
 const userCountEl = document.getElementById('userCount') as HTMLElement;
+const cmdPopup = document.getElementById('cmdPopup') as HTMLElement;
+
+// ── Command definitions for autocomplete ──
+const COMMANDS = [
+  { name: '/help', desc: 'Show available commands' },
+  { name: '/clear', desc: 'Clear chat history' },
+  { name: '/nick', desc: 'Change nickname', usage: '<name>' },
+  { name: '/users', desc: 'List connected users' },
+  { name: '/me', desc: 'Send an action message', usage: '<action>' },
+  { name: '/join', desc: 'Join or create a channel', usage: '<channel>' },
+  { name: '/leave', desc: 'Leave current channel' },
+  { name: '/search', desc: 'Search users', usage: '<query>' },
+  { name: '/members', desc: 'List channel members' },
+  { name: '/invite', desc: 'Create invite link (admin)', usage: '[maxUses] [expiresHrs]' },
+  { name: '/invites', desc: 'List active invites (admin)' },
+  { name: '/revoke', desc: 'Revoke an invite (admin)', usage: '<inviteId>' },
+  { name: '/add', desc: 'Add user to channel (admin)', usage: '<username>' },
+  { name: '/kick', desc: 'Remove user from channel (admin)', usage: '<username>' },
+  { name: '/joincode', desc: 'Join via invite code', usage: '<code>' },
+];
 
 // ── State ──
 let currentUser: User | null = null;
@@ -80,6 +100,8 @@ let activeChannelId: number | string | null = null;
 let allUsers: User[] = [];
 let channelMembers: ChannelMember[] = [];
 let myRoleInChannel: 'admin' | 'member' | null = null;
+let cmdSelectedIndex = 0;
+let cmdFiltered: typeof COMMANDS = [];
 
 // Hide app until authenticated
 appContainer.style.display = 'none';
@@ -661,8 +683,100 @@ function getDisplayUsername(): string {
   return currentUser ? `@${currentUser.username}` : '@anon';
 }
 
+// ── Command autocomplete ──
+function showCmdPopup(filtered: typeof COMMANDS) {
+  cmdFiltered = filtered;
+  cmdSelectedIndex = 0;
+  cmdPopup.innerHTML = filtered.map((cmd, i) => {
+    const usage = cmd.usage ? `<span class="cmd-usage">${cmd.usage}</span>` : '';
+    return `<div class="cmd-item${i === 0 ? ' selected' : ''}" data-index="${i}">
+      <span class="cmd-name">${cmd.name}</span>${usage}<span class="cmd-desc">${cmd.desc}</span>
+    </div>`;
+  }).join('');
+  cmdPopup.classList.remove('hidden');
+
+  // Click to select
+  cmdPopup.querySelectorAll('.cmd-item').forEach((el) => {
+    el.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      const idx = parseInt((el as HTMLElement).dataset.index || '0', 10);
+      applyCmdCompletion(cmdFiltered[idx]);
+    });
+  });
+}
+
+function hideCmdPopup() {
+  cmdPopup.classList.add('hidden');
+  cmdPopup.innerHTML = '';
+  cmdFiltered = [];
+}
+
+function updateCmdSelection() {
+  cmdPopup.querySelectorAll('.cmd-item').forEach((el, i) => {
+    el.classList.toggle('selected', i === cmdSelectedIndex);
+    if (i === cmdSelectedIndex) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function applyCmdCompletion(cmd: typeof COMMANDS[number]) {
+  messageInput.value = cmd.name + ' ';
+  hideCmdPopup();
+  messageInput.focus();
+}
+
+function isCmdPopupVisible() {
+  return !cmdPopup.classList.contains('hidden');
+}
+
+// Filter popup on input
+messageInput.addEventListener('input', () => {
+  const val = messageInput.value;
+  if (val.startsWith('/') && !val.includes(' ')) {
+    const prefix = val.toLowerCase();
+    const filtered = COMMANDS.filter((c) => c.name.startsWith(prefix));
+    if (filtered.length > 0) {
+      showCmdPopup(filtered);
+    } else {
+      hideCmdPopup();
+    }
+  } else {
+    hideCmdPopup();
+  }
+});
+
 // ── Input handling ──
 messageInput.addEventListener('keydown', (e: KeyboardEvent) => {
+  // Command popup keyboard navigation
+  if (isCmdPopupVisible()) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      cmdSelectedIndex = (cmdSelectedIndex + 1) % cmdFiltered.length;
+      updateCmdSelection();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      cmdSelectedIndex = (cmdSelectedIndex - 1 + cmdFiltered.length) % cmdFiltered.length;
+      updateCmdSelection();
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      applyCmdCompletion(cmdFiltered[cmdSelectedIndex]);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyCmdCompletion(cmdFiltered[cmdSelectedIndex]);
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      hideCmdPopup();
+      return;
+    }
+  }
+
   if (e.key === 'Enter') {
     const text = messageInput.value.trim();
     if (!text) return;

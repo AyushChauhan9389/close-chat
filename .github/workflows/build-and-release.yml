@@ -37,6 +37,14 @@ jobs:
         run: mkdir -p .vite
         shell: bash
 
+      - name: Decode Windows code signing certificate
+        if: matrix.platform == 'win32' && env.WINDOWS_CERTIFICATE != ''
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+        run: |
+          echo "$WINDOWS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.pfx"
+        shell: bash
+
       - name: Install Linux build deps
         if: matrix.platform == 'linux'
         run: |
@@ -44,6 +52,9 @@ jobs:
           sudo apt-get install -y dpkg fakeroot rpm
 
       - name: Build and make distributables
+        env:
+          WINDOWS_CERTIFICATE_FILE: ${{ runner.temp }}/certificate.pfx
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: npm run make
 
       - name: Upload Windows artifacts

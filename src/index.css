@@ -449,6 +449,82 @@ body.sidebar-open #sidebar {
   background: #333333;
 }
 
+/* Command autocomplete popup */
+.cmd-popup {
+  position: relative;
+  margin: 0 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  z-index: 20;
+}
+
+.cmd-popup.hidden {
+  display: none;
+}
+
+.cmd-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.cmd-item:hover,
+.cmd-item.selected {
+  background: #1a1a1a;
+}
+
+.cmd-name {
+  color: #4ade80;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cmd-usage {
+  color: #525252;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cmd-desc {
+  color: #737373;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Light theme overrides for cmd popup */
+body.light .cmd-popup {
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+
+body.light .cmd-item:hover,
+body.light .cmd-item.selected {
+  background: #e8e8e8;
+}
+
+body.light .cmd-name {
+  color: #16a34a;
+}
+
+body.light .cmd-usage {
+  color: #a3a3a3;
+}
+
+body.light .cmd-desc {
+  color: #737373;
+}
+
 /* Footer */
 #footer {
   padding: 12px 16px;

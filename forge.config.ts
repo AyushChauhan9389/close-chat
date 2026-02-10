@@ -11,7 +11,15 @@ const config: ForgeConfig = {
     executableName: 'close-chat',
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+      certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+    }),
+    new MakerZIP({}, ['darwin']),
+    new MakerRpm({}),
+    new MakerDeb({}),
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
