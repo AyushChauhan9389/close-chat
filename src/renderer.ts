@@ -13,16 +13,20 @@ declare global {
 }
 
 // ── Click-through for transparent regions ──
-// Start ignoring mouse events (with forwarding so we still get mousemove)
-window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-
+// forward: true only works on macOS; on Windows the window becomes fully click-through
+// with no way to recover, so we skip click-through on non-macOS platforms.
 const contentWrapper = document.getElementById('contentWrapper') as HTMLElement;
-contentWrapper.addEventListener('mouseenter', () => {
-  window.electronAPI.setIgnoreMouseEvents(false);
-});
-contentWrapper.addEventListener('mouseleave', () => {
+const isMac = navigator.platform.toLowerCase().includes('mac');
+
+if (isMac) {
   window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-});
+  contentWrapper.addEventListener('mouseenter', () => {
+    window.electronAPI.setIgnoreMouseEvents(false);
+  });
+  contentWrapper.addEventListener('mouseleave', () => {
+    window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+  });
+}
 
 // ── Middle-click drag support ──
 window.addEventListener('mousedown', (e) => {
