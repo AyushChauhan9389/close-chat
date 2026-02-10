@@ -99,7 +99,7 @@ function dismissAuth(user: User): void {
   currentUser = user;
 
   if (brandEl) {
-    brandEl.innerHTML = `bitchat / <span class="username">@${user.username}</span>`;
+    brandEl.innerHTML = `closechat / <span class="username">@${user.username}</span>`;
   }
 
   // Fade out overlay, reveal app
@@ -355,7 +355,7 @@ function handleCommand(input: string): boolean {
           currentUser = updated;
           addMessage('', `system: Nickname changed to @${updated.username}`, 'system');
           if (brandEl) {
-            brandEl.innerHTML = `bitchat / <span class="username">@${updated.username}</span>`;
+            brandEl.innerHTML = `closechat / <span class="username">@${updated.username}</span>`;
           }
         }).catch((err) => {
           addMessage('', `system: Failed to change nick: ${err.message}`, 'system');
@@ -737,13 +737,20 @@ const PEOPLE_PANEL_HEIGHT = 250;
 
 peopleToggle.addEventListener('click', () => {
   peopleOpen = !peopleOpen;
-  document.body.classList.toggle('people-open', peopleOpen);
   if (peopleOpen) {
+    // Resize window first, then reveal panel so the chat area doesn't shrink momentarily
     window.electronAPI.resizeWindow(APP_WIDTH, APP_HEIGHT + PEOPLE_PANEL_HEIGHT);
+    requestAnimationFrame(() => {
+      document.body.classList.add('people-open');
+    });
     loadUsers();
     loadChannelMembers();
   } else {
-    window.electronAPI.resizeWindow(APP_WIDTH, APP_HEIGHT);
+    // Hide panel first, then shrink window after the CSS transition finishes
+    document.body.classList.remove('people-open');
+    setTimeout(() => {
+      window.electronAPI.resizeWindow(APP_WIDTH, APP_HEIGHT);
+    }, 200); // matches the 0.2s CSS transition
   }
 });
 
@@ -1184,7 +1191,7 @@ function showEmptyState(): void {
     emptyStateEl.className = 'empty-state';
     emptyStateEl.innerHTML = `
       <div class="empty-state-icon material-icons">forum</div>
-      <div class="empty-state-title">bitchat</div>
+      <div class="empty-state-title">closechat</div>
       <div class="empty-state-hint">select a channel from the sidebar<br/>or type <span class="empty-state-cmd">/join &lt;channel&gt;</span> to get started</div>
     `;
     // Insert before footer so footer stays at bottom

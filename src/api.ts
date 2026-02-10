@@ -79,18 +79,18 @@ let _token: string | null = null;
 
 export function getToken(): string | null {
   if (_token) return _token;
-  _token = localStorage.getItem("bitchat_token");
+  _token = localStorage.getItem("closechat_token");
   return _token;
 }
 
 export function setToken(token: string): void {
   _token = token;
-  localStorage.setItem("bitchat_token", token);
+  localStorage.setItem("closechat_token", token);
 }
 
 export function clearToken(): void {
   _token = null;
-  localStorage.removeItem("bitchat_token");
+  localStorage.removeItem("closechat_token");
 }
 
 // ── Fetch wrapper ──
