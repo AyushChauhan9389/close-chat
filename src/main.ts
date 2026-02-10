@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, ipcMain } from "electron";
+import { app, BrowserWindow, screen, ipcMain, nativeImage } from "electron";
 import path from "path";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
@@ -17,11 +17,15 @@ const createWindow = () => {
   const { width: screenW, height: screenH } =
     screen.getPrimaryDisplay().workAreaSize;
 
+  const iconPath = path.join(__dirname, "../../assets/logo.jpeg");
+  const appIcon = nativeImage.createFromPath(iconPath);
+
   mainWindow = new BrowserWindow({
     width: APP_WIDTH,
     height: APP_HEIGHT,
     x: screenW - APP_WIDTH,
     y: screenH - APP_HEIGHT,
+    icon: appIcon,
     // skipTaskbar: true,
     // movable: false,
     resizable: false,
