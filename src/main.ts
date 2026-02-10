@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, ipcMain, nativeImage } from "electron";
+import { app, BrowserWindow, screen, ipcMain, nativeImage, globalShortcut, Tray, Menu } from "electron";
 import path from "path";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
@@ -9,6 +9,7 @@ if (require("electron-squirrel-startup")) {
 }
 
 let mainWindow: BrowserWindow;
+let tray: Tray | null = null;
 
 const APP_WIDTH = 400;
 const APP_HEIGHT = 500;
@@ -73,14 +74,60 @@ ipcMain.on(
   },
 );
 
+function toggleWindow(): void {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    mainWindow.show();
+  }
+}
+
+function createTray(): void {
+  const iconPath = path.join(__dirname, "../../assets/logo.jpeg");
+  const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip("Close Chat");
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Show / Hide",
+      click: toggleWindow,
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Left-click on tray icon toggles window
+  tray.on("click", toggleWindow);
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on("ready", createWindow);
+app.on("ready", () => {
+  createWindow();
+  createTray();
+
+  // Toggle window visibility with Ctrl+\
+  globalShortcut.register("CommandOrControl+\\", toggleWindow);
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
+
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
