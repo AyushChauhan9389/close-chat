@@ -1,5 +1,9 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import path from 'path';
+
+app.commandLine.appendSwitch("disable-http-cache");
+app.commandLine.appendSwitch("disk-cache-size", "0");
+
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
@@ -9,27 +13,25 @@ if (require('electron-squirrel-startup')) {
 
 let mainWindow: BrowserWindow;
 
-const COLLAPSED_WIDTH = 400;
-const EXPANDED_WIDTH = 650;
-const WINDOW_HEIGHT = 500;
-const PEOPLE_PANEL_HEIGHT = 250;
-const EXPANDED_HEIGHT = WINDOW_HEIGHT + PEOPLE_PANEL_HEIGHT; // 750px
-let sidebarOpen = false;
-let peopleOpen = false;
+// Fixed max dimensions — window never resizes
+const MAX_WIDTH = 650;
+const MAX_HEIGHT = 750;
 
 const createWindow = () => {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
-    width: COLLAPSED_WIDTH,
-    height: WINDOW_HEIGHT,
-    x: width - COLLAPSED_WIDTH,
-    y: height - WINDOW_HEIGHT,
+    width: MAX_WIDTH,
+    height: MAX_HEIGHT,
+    x: screenW - MAX_WIDTH,
+    y: screenH - MAX_HEIGHT,
     skipTaskbar: true,
     movable: false,
     resizable: false,
     frame: false,
     alwaysOnTop: true,
+    transparent: true,
+    hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -40,6 +42,11 @@ const createWindow = () => {
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
+
+  // Open dev tools if OPEN_DEVTOOLS environment variable is set
+  // if (process.env.OPEN_DEVTOOLS === 'true') {
+  //   mainWindow.webContents.openDevTools();
+  // }
 };
 
 ipcMain.on('set-movable', (_event, movable: boolean) => {
@@ -48,30 +55,10 @@ ipcMain.on('set-movable', (_event, movable: boolean) => {
   }
 });
 
-function applyWindowBounds(): void {
-  if (!mainWindow) return;
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
-
-  const w = sidebarOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
-  const h = peopleOpen ? EXPANDED_HEIGHT : WINDOW_HEIGHT;
-  const x = screenW - w;
-  const y = screenH - h;
-
-  mainWindow.setBounds({ x, y, width: w, height: h }, true);
-}
-
-ipcMain.handle('toggle-sidebar', () => {
-  if (!mainWindow) return sidebarOpen;
-  sidebarOpen = !sidebarOpen;
-  applyWindowBounds();
-  return sidebarOpen;
-});
-
-ipcMain.handle('toggle-people', () => {
-  if (!mainWindow) return peopleOpen;
-  peopleOpen = !peopleOpen;
-  applyWindowBounds();
-  return peopleOpen;
+ipcMain.on('set-ignore-mouse-events', (_event, ignore: boolean, opts?: { forward: boolean }) => {
+  if (mainWindow) {
+    mainWindow.setIgnoreMouseEvents(ignore, opts);
+  }
 });
 
 // This method will be called when Electron has finished
