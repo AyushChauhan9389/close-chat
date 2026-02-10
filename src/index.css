@@ -26,6 +26,8 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 400px;
+  min-height: 500px;
   background: #000000;
   overflow: hidden;
 }
