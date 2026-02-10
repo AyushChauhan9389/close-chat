@@ -11,60 +11,86 @@ html, body {
   overflow: hidden;
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  background: transparent;
+  background: #000000;
   color: #ffffff;
 }
 
 body {
   display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
+  flex-direction: column;
 }
 
-/* Content wrapper: pushes content to bottom-right of transparent window */
+/* Content wrapper: fills the window exactly */
 #contentWrapper {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 400px;
-  min-height: 500px;
+  flex: 1;
+  width: 100%;
   background: #000000;
   overflow: hidden;
 }
 
 /* App container: sidebar + chat panel side by side */
 #appContainer {
-  display: flex;
-  flex-direction: row;
-  height: 500px;
-  overflow: hidden;
-  flex-shrink: 0;
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Sidebar */
 #sidebar {
-  width: 0;
-  min-width: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  z-index: 50;
   overflow: hidden;
   background: #0a0a0a;
   border-right: 1px solid #1a1a1a;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: width 0.2s ease-out, min-width 0.2s ease-out;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.2s ease-out;
 }
 
 body.sidebar-open #sidebar {
-  width: 250px;
-  min-width: 250px;
+  clip-path: inset(0 0 0 0);
 }
 
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 10px 16px;
   border-bottom: 1px solid #1a1a1a;
   flex-shrink: 0;
   white-space: nowrap;
   -webkit-app-region: drag;
+}
+
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  color: #525252;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  -webkit-app-region: no-drag;
+  transition: color 0.2s;
+}
+
+.sidebar-close-btn:hover {
+  color: #ef4444;
+}
+
+.sidebar-close-btn .material-icons {
+  font-size: 18px;
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-title {
@@ -211,11 +237,11 @@ body.sidebar-open #sidebar {
 /* Chat panel takes remaining space */
 #chatPanel {
   position: relative;
-  width: 400px;
-  flex-shrink: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
 }
 
 /* Header */
@@ -746,14 +772,12 @@ body.light.people-open .status-group {
    ══════════════════════════════════════ */
 
 #authOverlay {
-  position: absolute;
-  inset: 0;
+  flex: 1;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.85);
+  background: #000000;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(4px);
   animation: authFadeIn 0.3s ease;
 }
 
@@ -1099,7 +1123,8 @@ body.light .chat-item-time {
   color: #94a3b8;
 }
 
-body.light .hamburger-btn {
+body.light .hamburger-btn,
+body.light .sidebar-close-btn {
   color: #94a3b8;
 }
 

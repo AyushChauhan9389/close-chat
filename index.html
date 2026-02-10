@@ -98,7 +98,7 @@
       </div>
     </div>
 
-    <!-- People Panel (expands upward) -->
+    <!-- People Panel (expands downward inside contentWrapper, above appContainer) -->
     <div id="peoplePanel">
       <div class="people-header">
         <span class="people-title">online</span>
@@ -114,6 +114,9 @@
       <aside id="sidebar" class="custom-scrollbar">
         <div class="sidebar-header">
           <span class="sidebar-title">chats</span>
+          <button id="sidebarCloseBtn" class="sidebar-close-btn">
+            <span class="material-icons">close</span>
+          </button>
         </div>
         <div id="chatList" class="chat-list">
           <!-- Chat items populated by renderer.ts -->
