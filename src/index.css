@@ -295,12 +295,12 @@ body.sidebar-open #sidebar {
 }
 
 .brand {
-  color: #4ade80;
+  color: #fb923c;
   font-weight: 700;
 }
 
 .username {
-  color: #4ade80;
+  color: #fb923c;
 }
 
 .header-right {
@@ -575,7 +575,7 @@ body.light .cmd-desc {
   color: #ffffff;
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  caret-color: transparent;
+  caret-color: #4ade80;
 }
 
 #messageInput::placeholder {
@@ -1076,9 +1076,12 @@ body.light #header {
   border-bottom-color: #e2e8f0;
 }
 
-body.light .brand,
+body.light .brand {
+  color: #f97316;
+}
+
 body.light .username {
-  color: #4ade80;
+  color: #f97316;
 }
 
 body.light .channel {
