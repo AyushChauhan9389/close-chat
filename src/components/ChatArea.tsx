@@ -42,6 +42,7 @@ export default function ChatArea() {
     loadChannelMembers,
     channelMembers,
     switchToChannel,
+    usernameStyle,
   } = useApp();
 
   const [inputValue, setInputValue] = useState('');
@@ -502,8 +503,10 @@ export default function ChatArea() {
                   </>
                 ) : (
                   <>
-                    <span className={`msg-username${msg.type === 'bot' ? ' bot' : ''}`}>
-                      &lt;{msg.username.startsWith('@') ? msg.username : `@${msg.username}`}&gt;
+                    <span className={`msg-username ${usernameStyle}${msg.type === 'bot' ? ' bot' : ''}`}>
+                      {usernameStyle === 'traditional'
+                        ? `<${msg.username.startsWith('@') ? msg.username : '@' + msg.username}>`
+                        : msg.username.replace(/^@/, '')}
                     </span>
                     <span
                       className="msg-text"
