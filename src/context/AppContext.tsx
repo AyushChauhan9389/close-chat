@@ -7,6 +7,8 @@ import { connectWs, disconnectWs, sendWs, onWs, isWsConnected } from '../lib/ws'
 // ── Message types for the chat area ──
 export type MessageType = 'user' | 'bot' | 'system';
 
+export type UsernameStyle = 'geist-square' | 'geist-grid' | 'geist-circle' | 'geist-triangle' | 'geist-line' | 'traditional';
+
 export interface ChatMessage {
   id: string;
   username: string;
@@ -64,6 +66,10 @@ interface AppContextValue {
   // WebSocket
   initApp: () => Promise<void>;
   sendChatMessage: (text: string) => void;
+
+  // Settings
+  usernameStyle: UsernameStyle;
+  setUsernameStyle: (style: UsernameStyle) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -140,6 +146,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Messages
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Settings
+  const [usernameStyle, setUsernameStyleState] = useState<UsernameStyle>(() => {
+    return (localStorage.getItem('closechat_username_style') as UsernameStyle) || 'geist-square';
+  });
+
+  const setUsernameStyle = useCallback((style: UsernameStyle) => {
+    setUsernameStyleState(style);
+    localStorage.setItem('closechat_username_style', style);
+  }, []);
 
   const addMessage = useCallback((username: string, text: string, type: MessageType = 'user', timestamp?: string) => {
     const msg: ChatMessage = {
@@ -476,6 +492,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     switchToChannel,
     initApp,
     sendChatMessage,
+    usernameStyle,
+    setUsernameStyle,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
