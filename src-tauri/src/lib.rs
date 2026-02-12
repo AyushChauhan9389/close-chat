@@ -4,7 +4,7 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager,
 };
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 fn toggle_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -37,8 +37,16 @@ pub fn run() {
                 let phys_w = (win_width * scale) as i32;
                 let phys_h = (win_height * scale) as i32;
 
-                let x = monitor_pos.x + monitor_size.width as i32 - phys_w;
-                let y = monitor_pos.y + monitor_size.height as i32 - phys_h;
+                // Add margins to avoid taskbar and screen edge
+                // 60.0 approx height of taskbar (40-48px) + padding
+                let margin_bottom = 60.0;
+                let margin_right = 20.0;
+
+                let phys_margin_b = (margin_bottom * scale) as i32;
+                let phys_margin_r = (margin_right * scale) as i32;
+
+                let x = monitor_pos.x + monitor_size.width as i32 - phys_w - phys_margin_r;
+                let y = monitor_pos.y + monitor_size.height as i32 - phys_h - phys_margin_b;
 
                 let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
             }
@@ -85,8 +93,10 @@ pub fn run() {
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::Backslash);
             let handle = app.handle().clone();
             app.global_shortcut()
-                .on_shortcut(shortcut, move |_app, _shortcut, _event| {
-                    toggle_window(&handle);
+                .on_shortcut(shortcut, move |_app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        toggle_window(&handle);
+                    }
                 })?;
 
             // ── Prevent close from quitting — hide to tray instead ──
