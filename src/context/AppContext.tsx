@@ -348,6 +348,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (!user || senderId !== user.id) {
             const timeStr = ts ? getTimestamp(ts) : undefined;
             addMessage(senderUsername, content, (data.messageType as MessageType) || 'user', timeStr);
+            const msgId = data.id as number;
+            if (isWsConnected()) {
+              sendWs({ type: 'mark-read', channelId, messageId: msgId });
+            } else {
+              api.markChannelRead(channelId).catch(() => {});
+            }
+            setChannels((prev) =>
+              prev.map((c) => (c.id === channelId ? { ...c, unreadCount: 0 } : c))
+            );
           }
         }
 
