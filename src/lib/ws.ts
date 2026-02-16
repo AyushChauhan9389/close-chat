@@ -22,7 +22,7 @@ export interface WsIncomingMessage {
 }
 
 export interface WsOutgoingMessage {
-  type: 'message' | 'typing-start' | 'typing-stop' | 'join-channel' | 'leave-channel' | 'status-update';
+  type: 'message' | 'typing-start' | 'typing-stop' | 'join-channel' | 'leave-channel' | 'status-update' | 'mark-read';
   [key: string]: unknown;
 }
 
