@@ -41,7 +41,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5RUEyNDM1QTIwNTYzMUEKUldRYVl3V2lOU1RxT1JWajI3MkRZUXN0ekV3VnJMVGNpUkE0Um4vcEoyQUhLc2p1UmtpTzRYYlMK",
       "endpoints": [
-        "https://github.com/<owner>/<repo>/releases/latest/download/latest.json"
+        "https://github.com/AyushChauhan9389/close-chat/releases/latest/download/latest.json"
       ]
     }
   }
