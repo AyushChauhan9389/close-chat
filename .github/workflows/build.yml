@@ -55,6 +55,8 @@ jobs:
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           args: ''
           ci: true
