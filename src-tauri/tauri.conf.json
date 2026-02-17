@@ -39,7 +39,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhCQjlENEREOEE2NjVDM0UKUldRK1hHYUszZFM1aXhNK0VEcEU1enlDQzJNakpXNGd3RXRWT2kyWTBQbkhOU1k4elduREMwK1UK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFBRTBEMjlFMTk0NDgwMTkKUldRWmdFUVpudExnR3RCbHo4Q2VxZytWNUswYkVWYyt6MzRTM2Z3YU93ZnVzZmVPOGg4bk0vV3YK",
       "endpoints": [
         "https://github.com/AyushChauhan9389/close-chat/releases/latest/download/latest.json"
       ]
