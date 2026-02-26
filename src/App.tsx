@@ -238,9 +238,7 @@ export default function App() {
     check().then((update) => {
       if (update) {
         console.log(`Update available: ${update.version}`);
-        update.downloadAndInstall().then(() => {
-          relaunch();
-        });
+        update.downloadAndInstall().then(() => relaunch()).catch(console.error);
       }
     }).catch(console.error);
   }, []);

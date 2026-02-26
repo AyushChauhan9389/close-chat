@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "closechat",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "identifier": "com.ayush.closechat",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -39,7 +39,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFBRTBEMjlFMTk0NDgwMTkKUldRWmdFUVpudExnR3RCbHo4Q2VxZytWNUswYkVWYyt6MzRTM2Z3YU93ZnVzZmVPOGg4bk0vV3YK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI0MzNGODUxRTYxNUY0NjcKUldSbjlCWG1VZmd6SkMwYllkY0ptZlAreFExbncwZ20rRHBmQzlyQUlvUkQ2aXNLMGJKR2U1Q1IK",
       "endpoints": [
         "https://github.com/AyushChauhan9389/close-chat/releases/latest/download/latest.json"
       ]
