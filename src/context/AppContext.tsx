@@ -339,6 +339,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           text: `system: Failed to load messages: ${message}`,
           type: 'system',
           timestamp: getTimestamp(),
+          date: getDateStr(),
         },
       ]);
     }
