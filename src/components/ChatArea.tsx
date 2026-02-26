@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import * as api from '../lib/api';
 
@@ -56,6 +56,9 @@ export default function ChatArea() {
     channelMembers,
     switchToChannel,
     usernameStyle,
+    hasMore,
+    isLoadingMore,
+    loadMoreMessages,
   } = useApp();
 
   const [inputValue, setInputValue] = useState('');
@@ -66,12 +69,45 @@ export default function ChatArea() {
   const chatAreaRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    if (chatAreaRef.current) {
-      chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
-    }
+  // Tracks whether the last messages change was a prepend (load more)
+  const isPrependRef = useRef(false);
+  // Captures scroll position before prepend so we can restore it after
+  const scrollAnchorRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
+
+  // Restore scroll position after prepend — runs before browser paint
+  useLayoutEffect(() => {
+    const el = chatAreaRef.current;
+    if (!el || !scrollAnchorRef.current) return;
+    const { scrollTop: prevTop, scrollHeight: prevHeight } = scrollAnchorRef.current;
+    el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+    scrollAnchorRef.current = null;
   }, [messages]);
+
+  // Auto-scroll to bottom on new messages (not on prepend)
+  useEffect(() => {
+    const el = chatAreaRef.current;
+    if (!el) return;
+    if (isPrependRef.current) {
+      isPrependRef.current = false;
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  // Scroll listener — load more when near top
+  useEffect(() => {
+    const el = chatAreaRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      if (el.scrollTop < 100 && hasMore && !isLoadingMore) {
+        scrollAnchorRef.current = { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight };
+        isPrependRef.current = true;
+        loadMoreMessages();
+      }
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [hasMore, isLoadingMore, loadMoreMessages]);
 
   // Focus input when channel changes
   useEffect(() => {
@@ -507,6 +543,16 @@ export default function ChatArea() {
       {hasChannel ? (
         <>
           <main id="chatArea" ref={chatAreaRef} className="custom-scrollbar">
+            {isLoadingMore && (
+              <div style={{ textAlign: 'center', padding: '8px 0', opacity: 0.5 }}>
+                <span className="msg-system">*** loading older messages...</span>
+              </div>
+            )}
+            {!isLoadingMore && !hasMore && messages.length > 1 && (
+              <div style={{ textAlign: 'center', padding: '8px 0', opacity: 0.3 }}>
+                <span className="msg-system">*** beginning of history</span>
+              </div>
+            )}
             {messages.map((msg, index) => {
               const prevMsg = index > 0 ? messages[index - 1] : null;
               const showDateSep = msg.date && (!prevMsg || prevMsg.date !== msg.date);

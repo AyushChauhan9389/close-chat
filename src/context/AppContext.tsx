@@ -60,6 +60,11 @@ interface AppContextValue {
   addMessage: (username: string, text: string, type?: MessageType, timestamp?: string, date?: string) => void;
   clearMessages: () => void;
 
+  // Pagination
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  loadMoreMessages: () => Promise<void>;
+
   // Channel operations
   loadChannels: () => Promise<void>;
   loadUsers: () => Promise<void>;
@@ -159,6 +164,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Messages
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Pagination
+  const [hasMore, setHasMore] = useState(false);
+  const [oldestMessageApiId, setOldestMessageApiId] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Settings
   const [usernameStyle, setUsernameStyleState] = useState<UsernameStyle>(() => {
@@ -303,6 +313,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Clear and load messages
     setMessages([]);
+    setHasMore(false);
+    setOldestMessageApiId(null);
+    setIsLoadingMore(false);
 
     const displayName = ch.type === 'dm'
       ? (ch.recipient ? `@${ch.recipient.username}` : `@${ch.name}`)
@@ -318,7 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     try {
-      const apiMessages = await api.getMessages(ch.id, { limit: 50 });
+      const { messages: apiMessages, hasMore: initialHasMore } = await api.getMessages(ch.id, { limit: 50 });
       const chronological = [...apiMessages].reverse();
       const rendered: ChatMessage[] = chronological.map((msg) => ({
         id: String(++msgIdCounter),
@@ -329,6 +342,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         date: getDateStr(msg.createdAt),
       }));
       setMessages([systemMsg, ...rendered]);
+      setHasMore(initialHasMore);
+      // oldest = last item in newest-first array
+      setOldestMessageApiId(apiMessages.length > 0 ? String(apiMessages[apiMessages.length - 1].id) : null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
       setMessages([
@@ -350,6 +366,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
       document.body.classList.remove('sidebar-open');
     }
   }, []);
+
+  // ── Load older messages (pagination) ──
+  const loadMoreMessages = useCallback(async () => {
+    const chId = activeChannelIdRef.current;
+    if (!chId || !hasMore || isLoadingMore || !oldestMessageApiId) return;
+
+    setIsLoadingMore(true);
+    try {
+      const { messages: apiMessages, hasMore: moreRemaining } =
+        await api.getMessages(chId, { limit: 50, before: oldestMessageApiId });
+
+      // Channel switched while fetching — discard stale results
+      if (activeChannelIdRef.current !== chId) return;
+
+      if (apiMessages.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      const chronological = [...apiMessages].reverse();
+      const newOldestApiId = String(apiMessages[apiMessages.length - 1].id);
+
+      const rendered: ChatMessage[] = chronological.map((msg) => ({
+        id: String(++msgIdCounter),
+        username: msg.senderUsername || 'unknown',
+        text: msg.content || '',
+        type: msg.type || 'user',
+        timestamp: getTimestamp(msg.createdAt),
+        date: getDateStr(msg.createdAt),
+      }));
+
+      // Preserve system message at index 0, prepend older messages after it
+      setMessages((prev) => {
+        const [sysMsg, ...rest] = prev;
+        return [sysMsg, ...rendered, ...rest];
+      });
+      setHasMore(moreRemaining);
+      setOldestMessageApiId(newOldestApiId);
+    } catch (err) {
+      console.error('loadMoreMessages failed:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, oldestMessageApiId]);
 
   // ── Send message ──
   const sendChatMessage = useCallback((text: string) => {
@@ -545,6 +605,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     messages,
     addMessage,
     clearMessages,
+    hasMore,
+    isLoadingMore,
+    loadMoreMessages,
     loadChannels,
     loadUsers,
     loadChannelMembers,

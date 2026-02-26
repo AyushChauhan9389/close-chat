@@ -323,14 +323,14 @@ export async function revokeInvite(
 export async function getMessages(
   channelId: number | string,
   options?: { limit?: number; before?: string },
-): Promise<Message[]> {
+): Promise<{ messages: Message[]; hasMore: boolean }> {
   const params = new URLSearchParams();
   if (options?.limit) params.set("limit", String(options.limit));
   if (options?.before) params.set("before", options.before);
   const qs = params.toString();
   const path = `/api/channels/${channelId}/messages${qs ? "?" + qs : ""}`;
   const data = await apiFetch<{ messages: Message[]; hasMore: boolean }>(path);
-  return data.messages || [];
+  return { messages: data.messages || [], hasMore: data.hasMore ?? false };
 }
 
 export async function sendMessage(
