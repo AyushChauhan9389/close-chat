@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
 import { check, type Update } from '@tauri-apps/plugin-updater';
@@ -47,8 +47,10 @@ export default function Sidebar() {
   const [searchFilter, setSearchFilter] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [appVersion, setAppVersion] = useState('');
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'pending' | 'none' | 'error'>('idle');
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'pending' | 'none' | 'error'>('idle');
   const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState({ downloaded: 0, total: 0 });
+  const relaunchAfterInstall = useRef(false);
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => {});
@@ -70,24 +72,29 @@ export default function Sidebar() {
     }
   }
 
-  async function handleRestartNow() {
+  async function startDownload(andRelaunch: boolean) {
     if (!pendingUpdate) return;
+    relaunchAfterInstall.current = andRelaunch;
+    setDownloadProgress({ downloaded: 0, total: 0 });
     setUpdateStatus('downloading');
     try {
-      await pendingUpdate.downloadAndInstall();
-      await relaunch();
-    } catch {
-      setUpdateStatus('error');
-    }
-  }
-
-  async function handleUpdateOnNextLaunch() {
-    if (!pendingUpdate) return;
-    setUpdateStatus('downloading');
-    try {
-      await pendingUpdate.downloadAndInstall();
-      setUpdateStatus('pending');
-      setPendingUpdate(null);
+      let downloaded = 0;
+      await pendingUpdate.downloadAndInstall((event) => {
+        if (event.event === 'Started') {
+          setDownloadProgress({ downloaded: 0, total: event.data.contentLength ?? 0 });
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          setDownloadProgress((prev) => ({ ...prev, downloaded }));
+        } else if (event.event === 'Finished') {
+          setUpdateStatus('installing');
+        }
+      });
+      if (relaunchAfterInstall.current) {
+        await relaunch();
+      } else {
+        setUpdateStatus('pending');
+        setPendingUpdate(null);
+      }
     } catch {
       setUpdateStatus('error');
     }
@@ -215,27 +222,56 @@ export default function Sidebar() {
           {/* Update available prompt */}
           {updateStatus === 'available' && pendingUpdate && (
             <div style={{ border: '1px solid #2a2a2a', borderRadius: '4px', padding: '12px', marginBottom: '10px' }}>
-              <div style={{ color: '#fb923c', fontSize: '12px', marginBottom: '4px' }}>
-                update available
-              </div>
+              <div style={{ color: '#fb923c', fontSize: '12px', marginBottom: '4px' }}>update available</div>
               <div style={{ color: '#525252', fontSize: '11px', fontFamily: 'monospace', marginBottom: '12px' }}>
-                v{pendingUpdate.version}
+                v{appVersion} → v{pendingUpdate.version}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <button
-                  onClick={handleRestartNow}
+                  onClick={() => startDownload(true)}
                   style={{ padding: '7px', background: '#fb923c', border: 'none', color: '#000', fontSize: '12px', cursor: 'pointer', borderRadius: '3px', fontWeight: 600 }}
                 >
                   restart &amp; update
                 </button>
                 <button
-                  onClick={handleUpdateOnNextLaunch}
+                  onClick={() => startDownload(false)}
                   style={{ padding: '7px', background: 'transparent', border: '1px solid #2a2a2a', color: '#a3a3a3', fontSize: '12px', cursor: 'pointer', borderRadius: '3px' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = '#525252'; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a2a'; }}
                 >
                   update on next launch
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Download progress */}
+          {(updateStatus === 'downloading' || updateStatus === 'installing') && (
+            <div style={{ border: '1px solid #2a2a2a', borderRadius: '4px', padding: '12px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#a3a3a3', fontSize: '12px' }}>
+                  {updateStatus === 'installing' ? 'installing...' : 'downloading...'}
+                </span>
+                <span style={{ color: '#525252', fontSize: '11px', fontFamily: 'monospace' }}>
+                  {downloadProgress.total > 0
+                    ? `${(downloadProgress.downloaded / 1024 / 1024).toFixed(1)} / ${(downloadProgress.total / 1024 / 1024).toFixed(1)} MB`
+                    : downloadProgress.downloaded > 0
+                      ? `${(downloadProgress.downloaded / 1024 / 1024).toFixed(1)} MB`
+                      : ''}
+                </span>
+              </div>
+              <div style={{ height: '3px', background: '#1a1a1a', borderRadius: '2px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    background: updateStatus === 'installing' ? '#22c55e' : '#fb923c',
+                    borderRadius: '2px',
+                    width: downloadProgress.total > 0
+                      ? `${Math.min(100, (downloadProgress.downloaded / downloadProgress.total) * 100)}%`
+                      : updateStatus === 'installing' ? '100%' : '0%',
+                    transition: 'width 0.2s ease, background 0.3s ease',
+                  }}
+                />
               </div>
             </div>
           )}
@@ -248,10 +284,10 @@ export default function Sidebar() {
           )}
 
           {/* Check / status button */}
-          {updateStatus !== 'available' && (
+          {!['available', 'downloading', 'installing'].includes(updateStatus) && (
             <button
               onClick={handleCheckUpdate}
-              disabled={updateStatus === 'checking' || updateStatus === 'downloading' || updateStatus === 'pending'}
+              disabled={updateStatus === 'checking' || updateStatus === 'pending'}
               style={{
                 width: '100%',
                 padding: '8px',
@@ -259,15 +295,14 @@ export default function Sidebar() {
                 border: '1px solid #2a2a2a',
                 color: updateStatus === 'none' ? '#525252' : updateStatus === 'error' ? '#ef4444' : '#ffffff',
                 fontSize: '12px',
-                cursor: ['checking', 'downloading', 'pending'].includes(updateStatus) ? 'default' : 'pointer',
+                cursor: ['checking', 'pending'].includes(updateStatus) ? 'default' : 'pointer',
                 borderRadius: '4px',
                 transition: 'border-color 0.15s',
               }}
-              onMouseEnter={e => { if (updateStatus === 'idle' || updateStatus === 'none' || updateStatus === 'error') e.currentTarget.style.borderColor = '#fb923c'; }}
+              onMouseEnter={e => { if (!['checking', 'pending'].includes(updateStatus)) e.currentTarget.style.borderColor = '#fb923c'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a2a'; }}
             >
               {updateStatus === 'checking' && 'checking...'}
-              {updateStatus === 'downloading' && 'downloading...'}
               {updateStatus === 'pending' && 'update ready'}
               {updateStatus === 'none' && 'up to date'}
               {updateStatus === 'error' && 'check failed — retry'}
