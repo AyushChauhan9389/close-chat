@@ -384,6 +384,85 @@ body.sidebar-open #sidebar {
   gap: 4px;
 }
 
+/* Custom title bar */
+#titleBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 6px 0 12px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1a1a1a;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: default;
+}
+
+body.fullscreen #titleBar {
+  height: 36px;
+  padding: 0 6px 0 16px;
+}
+
+.title-bar-brand {
+  color: #fb923c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body.fullscreen .title-bar-brand {
+  font-size: 13px;
+}
+
+.title-bar-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.title-bar-btn {
+  background: none;
+  border: none;
+  color: #525252;
+  cursor: pointer;
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.title-bar-btn .material-icons {
+  font-size: 16px;
+}
+
+.title-bar-btn:hover {
+  color: #ffffff;
+  background: #1a1a1a;
+}
+
+.title-bar-btn.close:hover {
+  color: #ef4444;
+  background: #1f0a0a;
+}
+
+/* Date separator */
+.date-separator {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.date-separator-label {
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  color: #888888;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 14px;
+  border-radius: 12px !important;
+  letter-spacing: 0.2px;
+}
+
 /* Empty State */
 .empty-state {
   flex: 1;
@@ -1292,4 +1371,73 @@ body.light .sidebar-close-btn {
 
 body.light .hamburger-btn:hover {
   color: #4ade80;
+}
+
+body.light .date-separator-label {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+body.light #titleBar {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+}
+
+body.light .title-bar-btn:hover {
+  color: #1e293b;
+  background: #e2e8f0;
+}
+
+body.light .title-bar-btn.close:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+/* ══════════════════════════════════════
+   Fullscreen Mode Layout
+   ══════════════════════════════════════ */
+
+body.fullscreen #appContainer {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Sidebar: always visible, not an absolute overlay */
+body.fullscreen #sidebar {
+  position: relative;
+  top: auto;
+  left: auto;
+  bottom: auto;
+  clip-path: none;
+  transition: none;
+  flex-shrink: 0;
+}
+
+/* Chat panel fills the remaining space */
+body.fullscreen #chatPanel {
+  width: auto;
+  flex: 1;
+}
+
+/* People panel: right-side retractable column */
+body.fullscreen #peoplePanel {
+  height: 100% !important;
+  width: 0;
+  border-bottom: none;
+  border-left: 1px solid #1a1a1a;
+  flex-shrink: 0;
+  transition: width 0.2s ease-out;
+}
+
+body.fullscreen.people-open #peoplePanel {
+  height: 100% !important;
+  width: 250px;
+}
+
+/* Header is not a drag region in fullscreen */
+body.fullscreen #header {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  cursor: default;
 }

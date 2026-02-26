@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useApp } from '../context/AppContext';
 import type { Channel } from '../lib/api';
-import type { UsernameStyle } from '../context/AppContext';
+import type { UsernameStyle, DisplayMode } from '../context/AppContext';
 
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
@@ -40,7 +40,7 @@ const FONT_OPTIONS: { value: UsernameStyle; label: string; fontClass: string }[]
 ];
 
 export default function Sidebar() {
-  const { channels, activeChannelId, switchToChannel, setSidebarOpen, usernameStyle, setUsernameStyle } = useApp();
+  const { channels, activeChannelId, switchToChannel, setSidebarOpen, usernameStyle, setUsernameStyle, displayMode, setDisplayMode } = useApp();
   const [searchFilter, setSearchFilter] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -78,29 +78,31 @@ export default function Sidebar() {
           >
             <span className="material-icons">{showSettings ? 'arrow_back' : 'settings'}</span>
           </button>
-          <button className="sidebar-close-btn" onClick={handleClose} title="Close sidebar">
-            <span className="material-icons">close</span>
-          </button>
+          {displayMode === 'compact' && (
+            <button className="sidebar-close-btn" onClick={handleClose} title="Close sidebar">
+              <span className="material-icons">close</span>
+            </button>
+          )}
         </div>
       </div>
 
       {showSettings ? (
-        <div className="settings-pane" style={{ padding: '16px' }}>
-          <div className="setting-group" style={{ marginBottom: '16px' }}>
+        <div className="settings-pane" style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+          <div className="setting-group" style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', color: '#fb923c', fontSize: '12px', fontWeight: 500, marginBottom: '12px' }}>
               Username Style
             </label>
             <div className="setting-options" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {FONT_OPTIONS.map((opt) => (
-                <label 
+                <label
                   key={opt.value}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    cursor: 'pointer', 
-                    color: 'inherit', 
-                    fontSize: '13px' 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    color: 'inherit',
+                    fontSize: '13px'
                   }}
                 >
                   <input
@@ -114,6 +116,38 @@ export default function Sidebar() {
                   <span className={`msg-username ${opt.fontClass}`} style={{ fontSize: opt.value === 'traditional' ? '13px' : '12px' }}>
                     {opt.value === 'traditional' ? '<@username>' : 'username'}
                   </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid #1a1a1a', marginBottom: '20px' }} />
+
+          <div className="setting-group">
+            <label style={{ display: 'block', color: '#fb923c', fontSize: '12px', fontWeight: 500, marginBottom: '12px' }}>
+              Display Mode
+            </label>
+            <div className="setting-options" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {([
+                { value: 'compact' as DisplayMode, label: 'Compact', desc: '400×500 widget, always on top' },
+                { value: 'fullscreen' as DisplayMode, label: 'Fullscreen', desc: 'Maximized, sidebar always open' },
+              ]).map((opt) => (
+                <label
+                  key={opt.value}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  <input
+                    type="radio"
+                    name="displayMode"
+                    value={opt.value}
+                    checked={displayMode === opt.value}
+                    onChange={() => setDisplayMode(opt.value)}
+                    style={{ accentColor: '#fb923c', marginTop: '2px', flexShrink: 0 }}
+                  />
+                  <div>
+                    <div style={{ color: '#ffffff' }}>{opt.label}</div>
+                    <div style={{ color: '#525252', fontSize: '11px', marginTop: '2px' }}>{opt.desc}</div>
+                  </div>
                 </label>
               ))}
             </div>
