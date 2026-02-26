@@ -1,5 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getVersion } from '@tauri-apps/api/app';
+import { check, type Update } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { useApp } from '../context/AppContext';
 import type { Channel } from '../lib/api';
 import type { UsernameStyle, DisplayMode } from '../context/AppContext';
@@ -43,6 +46,52 @@ export default function Sidebar() {
   const { channels, activeChannelId, switchToChannel, setSidebarOpen, usernameStyle, setUsernameStyle, displayMode, setDisplayMode } = useApp();
   const [searchFilter, setSearchFilter] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'pending' | 'none' | 'error'>('idle');
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
+
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
+
+  async function handleCheckUpdate() {
+    setUpdateStatus('checking');
+    setPendingUpdate(null);
+    try {
+      const update = await check();
+      if (update) {
+        setPendingUpdate(update);
+        setUpdateStatus('available');
+      } else {
+        setUpdateStatus('none');
+      }
+    } catch {
+      setUpdateStatus('error');
+    }
+  }
+
+  async function handleRestartNow() {
+    if (!pendingUpdate) return;
+    setUpdateStatus('downloading');
+    try {
+      await pendingUpdate.downloadAndInstall();
+      await relaunch();
+    } catch {
+      setUpdateStatus('error');
+    }
+  }
+
+  async function handleUpdateOnNextLaunch() {
+    if (!pendingUpdate) return;
+    setUpdateStatus('downloading');
+    try {
+      await pendingUpdate.downloadAndInstall();
+      setUpdateStatus('pending');
+      setPendingUpdate(null);
+    } catch {
+      setUpdateStatus('error');
+    }
+  }
 
   const filtered = searchFilter
     ? channels.filter((ch) => {
@@ -88,22 +137,21 @@ export default function Sidebar() {
 
       {showSettings ? (
         <div className="settings-pane" style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+
+          {/* ── Appearance ── */}
+          <div style={{ color: '#fb923c', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '14px' }}>
+            Appearance
+          </div>
+
           <div className="setting-group" style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', color: '#fb923c', fontSize: '12px', fontWeight: 500, marginBottom: '12px' }}>
+            <label style={{ display: 'block', color: '#a3a3a3', fontSize: '12px', fontWeight: 500, marginBottom: '10px' }}>
               Username Style
             </label>
             <div className="setting-options" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {FONT_OPTIONS.map((opt) => (
                 <label
                   key={opt.value}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    color: 'inherit',
-                    fontSize: '13px'
-                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'inherit', fontSize: '13px' }}
                 >
                   <input
                     type="radio"
@@ -121,10 +169,8 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid #1a1a1a', marginBottom: '20px' }} />
-
-          <div className="setting-group">
-            <label style={{ display: 'block', color: '#fb923c', fontSize: '12px', fontWeight: 500, marginBottom: '12px' }}>
+          <div className="setting-group" style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', color: '#a3a3a3', fontSize: '12px', fontWeight: 500, marginBottom: '10px' }}>
               Display Mode
             </label>
             <div className="setting-options" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -152,6 +198,82 @@ export default function Sidebar() {
               ))}
             </div>
           </div>
+
+          {/* ── About ── */}
+          <div style={{ borderTop: '1px solid #1a1a1a', marginBottom: '14px' }} />
+          <div style={{ color: '#fb923c', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '14px' }}>
+            About
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ color: '#a3a3a3', fontSize: '12px' }}>Version</span>
+            <span style={{ color: '#ffffff', fontSize: '12px', fontFamily: 'monospace' }}>
+              {appVersion ? `v${appVersion}` : '—'}
+            </span>
+          </div>
+
+          {/* Update available prompt */}
+          {updateStatus === 'available' && pendingUpdate && (
+            <div style={{ border: '1px solid #2a2a2a', borderRadius: '4px', padding: '12px', marginBottom: '10px' }}>
+              <div style={{ color: '#fb923c', fontSize: '12px', marginBottom: '4px' }}>
+                update available
+              </div>
+              <div style={{ color: '#525252', fontSize: '11px', fontFamily: 'monospace', marginBottom: '12px' }}>
+                v{pendingUpdate.version}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <button
+                  onClick={handleRestartNow}
+                  style={{ padding: '7px', background: '#fb923c', border: 'none', color: '#000', fontSize: '12px', cursor: 'pointer', borderRadius: '3px', fontWeight: 600 }}
+                >
+                  restart &amp; update
+                </button>
+                <button
+                  onClick={handleUpdateOnNextLaunch}
+                  style={{ padding: '7px', background: 'transparent', border: '1px solid #2a2a2a', color: '#a3a3a3', fontSize: '12px', cursor: 'pointer', borderRadius: '3px' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#525252'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a2a'; }}
+                >
+                  update on next launch
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Pending install notice */}
+          {updateStatus === 'pending' && (
+            <div style={{ border: '1px solid #2a2a2a', borderRadius: '4px', padding: '10px', marginBottom: '10px', color: '#525252', fontSize: '12px' }}>
+              update ready — restart to apply
+            </div>
+          )}
+
+          {/* Check / status button */}
+          {updateStatus !== 'available' && (
+            <button
+              onClick={handleCheckUpdate}
+              disabled={updateStatus === 'checking' || updateStatus === 'downloading' || updateStatus === 'pending'}
+              style={{
+                width: '100%',
+                padding: '8px',
+                background: 'transparent',
+                border: '1px solid #2a2a2a',
+                color: updateStatus === 'none' ? '#525252' : updateStatus === 'error' ? '#ef4444' : '#ffffff',
+                fontSize: '12px',
+                cursor: ['checking', 'downloading', 'pending'].includes(updateStatus) ? 'default' : 'pointer',
+                borderRadius: '4px',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => { if (updateStatus === 'idle' || updateStatus === 'none' || updateStatus === 'error') e.currentTarget.style.borderColor = '#fb923c'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a2a'; }}
+            >
+              {updateStatus === 'checking' && 'checking...'}
+              {updateStatus === 'downloading' && 'downloading...'}
+              {updateStatus === 'pending' && 'update ready'}
+              {updateStatus === 'none' && 'up to date'}
+              {updateStatus === 'error' && 'check failed — retry'}
+              {updateStatus === 'idle' && 'check for updates'}
+            </button>
+          )}
         </div>
       ) : (
         <div id="chatList" className="chat-list">
