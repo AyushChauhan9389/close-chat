@@ -28,6 +28,19 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
+function formatDateLabel(dateStr: string): string {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, mo - 1, d);
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const yest = new Date(now);
+  yest.setDate(now.getDate() - 1);
+  const yesterdayStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+  if (dateStr === todayStr) return 'Today';
+  if (dateStr === yesterdayStr) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+}
+
 export default function ChatArea() {
   const {
     currentUser,
@@ -494,29 +507,40 @@ export default function ChatArea() {
       {hasChannel ? (
         <>
           <main id="chatArea" ref={chatAreaRef} className="custom-scrollbar">
-            {messages.map((msg) => (
-              <div key={msg.id} className="message-line">
-                {msg.type === 'system' ? (
-                  <>
-                    <span className="msg-system">*** {msg.text}</span>
-                    <span className="msg-timestamp">[{msg.timestamp}]</span>
-                  </>
-                ) : (
-                  <>
-                    <span className={`msg-username ${usernameStyle}${msg.type === 'bot' ? ' bot' : ''}`}>
-                      {usernameStyle === 'traditional'
-                        ? `<${msg.username.startsWith('@') ? msg.username : '@' + msg.username}>`
-                        : msg.username.replace(/^@/, '')}
-                    </span>
-                    <span
-                      className="msg-text"
-                      dangerouslySetInnerHTML={{ __html: escapeHtml(msg.text) }}
-                    />
-                    <span className="msg-timestamp">[{msg.timestamp}]</span>
-                  </>
-                )}
-              </div>
-            ))}
+            {messages.map((msg, index) => {
+              const prevMsg = index > 0 ? messages[index - 1] : null;
+              const showDateSep = msg.date && (!prevMsg || prevMsg.date !== msg.date);
+              return (
+                <div key={msg.id}>
+                  {showDateSep && (
+                    <div className="date-separator">
+                      <span className="date-separator-label">{formatDateLabel(msg.date)}</span>
+                    </div>
+                  )}
+                  <div className="message-line">
+                    {msg.type === 'system' ? (
+                      <>
+                        <span className="msg-system">*** {msg.text}</span>
+                        <span className="msg-timestamp">[{msg.timestamp}]</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className={`msg-username ${usernameStyle}${msg.type === 'bot' ? ' bot' : ''}`}>
+                          {usernameStyle === 'traditional'
+                            ? `<${msg.username.startsWith('@') ? msg.username : '@' + msg.username}>`
+                            : msg.username.replace(/^@/, '')}
+                        </span>
+                        <span
+                          className="msg-text"
+                          dangerouslySetInnerHTML={{ __html: escapeHtml(msg.text) }}
+                        />
+                        <span className="msg-timestamp">[{msg.timestamp}]</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </main>
 
           {/* Theme toggle */}

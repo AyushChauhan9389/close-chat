@@ -9,12 +9,15 @@ export type MessageType = 'user' | 'bot' | 'system';
 
 export type UsernameStyle = 'geist-square' | 'geist-grid' | 'geist-circle' | 'geist-triangle' | 'geist-line' | 'traditional';
 
+export type DisplayMode = 'compact' | 'fullscreen';
+
 export interface ChatMessage {
   id: string;
   username: string;
   text: string;
   type: MessageType;
   timestamp: string;
+  date: string; // YYYY-MM-DD local date
 }
 
 // ── Context shape ──
@@ -54,7 +57,7 @@ interface AppContextValue {
 
   // Messages
   messages: ChatMessage[];
-  addMessage: (username: string, text: string, type?: MessageType, timestamp?: string) => void;
+  addMessage: (username: string, text: string, type?: MessageType, timestamp?: string, date?: string) => void;
   clearMessages: () => void;
 
   // Channel operations
@@ -70,6 +73,8 @@ interface AppContextValue {
   // Settings
   usernameStyle: UsernameStyle;
   setUsernameStyle: (style: UsernameStyle) => void;
+  displayMode: DisplayMode;
+  setDisplayMode: (mode: DisplayMode) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -80,13 +85,21 @@ export function useApp(): AppContextValue {
   return ctx;
 }
 
-// ── Helper ──
+// ── Helpers ──
 function getTimestamp(date?: Date | string): string {
   const d = date ? new Date(date) : new Date();
   const h = String(d.getHours()).padStart(2, '0');
   const m = String(d.getMinutes()).padStart(2, '0');
   const s = String(d.getSeconds()).padStart(2, '0');
   return `${h}:${m}:${s}`;
+}
+
+function getDateStr(date?: Date | string): string {
+  const d = date ? new Date(date) : new Date();
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${day}`;
 }
 
 let msgIdCounter = 0;
@@ -157,13 +170,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('closechat_username_style', style);
   }, []);
 
-  const addMessage = useCallback((username: string, text: string, type: MessageType = 'user', timestamp?: string) => {
+  // Display mode
+  const [displayMode, setDisplayModeState] = useState<DisplayMode>(() => {
+    return (localStorage.getItem('closechat_display_mode') as DisplayMode) || 'compact';
+  });
+
+  const setDisplayMode = useCallback((mode: DisplayMode) => {
+    setDisplayModeState(mode);
+    localStorage.setItem('closechat_display_mode', mode);
+    document.body.classList.toggle('fullscreen', mode === 'fullscreen');
+    if (mode === 'fullscreen') {
+      document.body.classList.add('sidebar-open');
+      setSidebarOpen(true);
+    } else {
+      document.body.classList.remove('sidebar-open');
+      document.body.classList.remove('people-open');
+      setSidebarOpen(false);
+    }
+  }, []);
+
+  // Apply persisted display mode on initial mount
+  useEffect(() => {
+    const saved = localStorage.getItem('closechat_display_mode') as DisplayMode;
+    if (saved === 'fullscreen') {
+      document.body.classList.add('fullscreen');
+      document.body.classList.add('sidebar-open');
+      setSidebarOpen(true);
+    }
+  }, []);
+
+  const addMessage = useCallback((username: string, text: string, type: MessageType = 'user', timestamp?: string, date?: string) => {
     const msg: ChatMessage = {
       id: String(++msgIdCounter),
       username,
       text,
       type,
       timestamp: timestamp || getTimestamp(),
+      date: date || getDateStr(),
     };
     setMessages((prev) => [...prev, msg]);
   }, []);
@@ -181,6 +224,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   channelsRef.current = channels;
   const allUsersRef = useRef(allUsers);
   allUsersRef.current = allUsers;
+  const displayModeRef = useRef(displayMode);
+  displayModeRef.current = displayMode;
 
   // ── Channel operations ──
   const loadChannels = useCallback(async () => {
@@ -269,6 +314,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       text: `system: switched to ${displayName}`,
       type: 'system',
       timestamp: getTimestamp(),
+      date: getDateStr(),
     };
 
     try {
@@ -280,6 +326,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         text: msg.content || '',
         type: msg.type || 'user',
         timestamp: getTimestamp(msg.createdAt),
+        date: getDateStr(msg.createdAt),
       }));
       setMessages([systemMsg, ...rendered]);
     } catch (err: unknown) {
@@ -296,9 +343,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ]);
     }
 
-    // Close sidebar on mobile after switching
-    setSidebarOpen(false);
-    document.body.classList.remove('sidebar-open');
+    // Close sidebar after switching (compact mode only)
+    if (displayModeRef.current === 'compact') {
+      setSidebarOpen(false);
+      document.body.classList.remove('sidebar-open');
+    }
   }, []);
 
   // ── Send message ──
@@ -503,6 +552,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     sendChatMessage,
     usernameStyle,
     setUsernameStyle,
+    displayMode,
+    setDisplayMode,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

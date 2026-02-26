@@ -27,6 +27,10 @@ pub fn run() {
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
 
+            // ── Open DevTools on startup (dev only) ──
+            #[cfg(debug_assertions)]
+            window.open_devtools();
+
             // ── Position window at bottom-right of screen ──
             if let Some(monitor) = window.current_monitor().unwrap_or(None) {
                 let monitor_size = monitor.size();

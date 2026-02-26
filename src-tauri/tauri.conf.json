@@ -15,7 +15,7 @@
         "title": "closechat",
         "width": 400,
         "height": 500,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "alwaysOnTop": true,
         "transparent": true
