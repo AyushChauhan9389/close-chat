@@ -31,6 +31,12 @@ interface AppContextValue {
   isDark: boolean;
   toggleTheme: () => void;
 
+  // Minimized state
+  isMinimized: boolean;
+  setIsMinimized: (minimized: boolean) => void;
+  prevDisplayMode: DisplayMode;
+  setPrevDisplayMode: (mode: DisplayMode) => void;
+
   // Sidebar
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
@@ -127,6 +133,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+
+  // Minimized state
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [prevDisplayMode, setPrevDisplayMode] = useState<DisplayMode>('compact');
 
   // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -586,6 +596,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isAuthenticated,
     isDark,
     toggleTheme,
+    isMinimized,
+    setIsMinimized,
+    prevDisplayMode,
+    setPrevDisplayMode,
     sidebarOpen,
     setSidebarOpen,
     toggleSidebar,

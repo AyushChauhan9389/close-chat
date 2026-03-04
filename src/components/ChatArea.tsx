@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import * as api from '../lib/api';
+import EmojiPicker from './EmojiPicker';
 
 // ── Command definitions for autocomplete ──
 const COMMANDS = [
@@ -65,6 +66,7 @@ export default function ChatArea() {
   const [cmdFiltered, setCmdFiltered] = useState<typeof COMMANDS>([]);
   const [cmdSelectedIndex, setCmdSelectedIndex] = useState(0);
   const [cmdVisible, setCmdVisible] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const chatAreaRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -485,6 +487,23 @@ export default function ChatArea() {
     }
   }
 
+  function insertEmoji(emoji: string) {
+    const input = inputRef.current;
+    if (!input) {
+      setInputValue((prev) => prev + emoji);
+      return;
+    }
+    const start = input.selectionStart ?? inputValue.length;
+    const end = input.selectionEnd ?? inputValue.length;
+    const newValue = inputValue.slice(0, start) + emoji + inputValue.slice(end);
+    setInputValue(newValue);
+    // Move cursor after emoji
+    requestAnimationFrame(() => {
+      input.selectionStart = input.selectionEnd = start + emoji.length;
+      input.focus();
+    });
+  }
+
   function applyCmdCompletion(cmd: typeof COMMANDS[number]) {
     setInputValue(cmd.name + ' ');
     setCmdVisible(false);
@@ -639,13 +658,24 @@ export default function ChatArea() {
               autoFocus
             />
           </div>
-          <div className="input-actions">
-            <button className="action-btn">
-              <span className="material-icons">photo_camera</span>
-            </button>
-            <button className="action-btn mic-btn">
-              <span className="material-icons">mic</span>
-            </button>
+          <div className="input-actions-wrapper">
+            <div className="input-actions">
+              <button className="action-btn" onClick={() => setEmojiPickerOpen((v) => !v)}>
+                <span className="material-icons">sentiment_satisfied</span>
+              </button>
+              <button className="action-btn">
+                <span className="material-icons">photo_camera</span>
+              </button>
+              <button className="action-btn mic-btn">
+                <span className="material-icons">mic</span>
+              </button>
+            </div>
+            {emojiPickerOpen && (
+              <EmojiPicker
+                onSelect={insertEmoji}
+                onClose={() => setEmojiPickerOpen(false)}
+              />
+            )}
           </div>
         </div>
       </footer>

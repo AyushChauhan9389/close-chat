@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { getCurrentWindow, LogicalSize, PhysicalPosition } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useApp } from './context/AppContext';
@@ -7,6 +8,7 @@ import AuthOverlay from './components/AuthOverlay';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import PeoplePanel from './components/PeoplePanel';
+import MiniView from './components/MiniView';
 
 function AppContent() {
   const {
@@ -21,6 +23,10 @@ function AppContent() {
     loadChannelMembers,
     displayMode,
     setDisplayMode,
+    isMinimized,
+    setIsMinimized,
+    setPrevDisplayMode,
+    prevDisplayMode,
   } = useApp();
 
   // Load users & members when people panel opens
@@ -31,8 +37,11 @@ function AppContent() {
     }
   }, [peopleOpen, loadUsers, loadChannelMembers]);
 
-  // Apply Tauri window settings when display mode changes
+  // Apply Tauri window settings when display mode changes OR when restoring from mini.
+  // isMinimized is included so that when it flips to false, this re-runs and correctly
+  // applies fullscreen/compact sizing (displayMode itself doesn't change while minimized).
   useEffect(() => {
+    if (isMinimized) return;
     const win = getCurrentWindow();
     if (displayMode === 'fullscreen') {
       win.setResizable(true).catch(console.error);
@@ -45,7 +54,7 @@ function AppContent() {
         .then(() => win.setResizable(false))
         .catch(console.error);
     }
-  }, [displayMode]);
+  }, [displayMode, isMinimized]);
 
   // Drag handler: call Tauri's startDragging on mousedown
   const handleDragMouseDown = useCallback((e: React.MouseEvent) => {
@@ -60,6 +69,28 @@ function AppContent() {
   const handleMinimize = useCallback(() => {
     getCurrentWindow().minimize().catch(console.error);
   }, []);
+
+  // Refs so the event listener callback always sees current values
+  const displayModeRef2 = useRef(displayMode);
+  displayModeRef2.current = displayMode;
+  const prevDisplayModeRef = useRef(prevDisplayMode);
+  prevDisplayModeRef.current = prevDisplayMode;
+
+  // Listen for minimize-state-changed from Rust (Ctrl+\ shortcut or tray click).
+  // Must live here (always mounted), not inside MiniView (only mounted when minimized).
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<boolean>('minimize-state-changed', (event) => {
+      const minimized = event.payload;
+      if (minimized) {
+        setPrevDisplayMode(displayModeRef2.current);
+      } else {
+        setDisplayMode(prevDisplayModeRef.current);
+      }
+      setIsMinimized(minimized);
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [setIsMinimized, setPrevDisplayMode, setDisplayMode]);
 
   const handleHide = useCallback(() => {
     getCurrentWindow().hide().catch(console.error);
@@ -182,6 +213,15 @@ function AppContent() {
     : '';
 
   const onlineCount = allUsers.filter((u) => u.status === 'online').length;
+
+  // Show mini view when minimized
+  if (isMinimized) {
+    return (
+      <div id="contentWrapper" className="minimized">
+        <MiniView />
+      </div>
+    );
+  }
 
   return (
     <div id="contentWrapper">
