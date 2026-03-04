@@ -1,19 +1,69 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    Manager,
+    Emitter, Listener, Manager,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-fn toggle_window(app: &tauri::AppHandle) {
+static MINIMIZED: AtomicBool = AtomicBool::new(false);
+const NORMAL_WIDTH: f64 = 400.0;
+const NORMAL_HEIGHT: f64 = 500.0;
+const MINI_SIZE: f64 = 48.0;
+
+fn set_window_minimized(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
-            let _ = window.hide();
-        } else {
-            let _ = window.show();
-            let _ = window.set_focus();
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let phys_size = (MINI_SIZE * scale) as i32;
+
+        let _ = window.set_size(tauri::PhysicalSize::new(phys_size, phys_size));
+
+        // Position above taskbar (just above the bottom edge of screen)
+        if let Some(monitor) = window.current_monitor().unwrap_or(None) {
+            let monitor_size = monitor.size();
+            let monitor_pos = monitor.position();
+            // Position at bottom center, above taskbar
+            let x = monitor_pos.x + (monitor_size.width as i32 - phys_size) / 2;
+            let y = monitor_pos.y + monitor_size.height as i32 - phys_size - 48; // 48px above taskbar
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
         }
+
+        MINIMIZED.store(true, Ordering::SeqCst);
+        let _ = app.emit("minimize-state-changed", true);
+    }
+}
+
+fn restore_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let phys_w = (NORMAL_WIDTH * scale) as i32;
+        let phys_h = (NORMAL_HEIGHT * scale) as i32;
+
+        let _ = window.set_size(tauri::PhysicalSize::new(phys_w, phys_h));
+
+        if let Some(monitor) = window.current_monitor().unwrap_or(None) {
+            let monitor_size = monitor.size();
+            let monitor_pos = monitor.position();
+            let margin_bottom = (60.0 * scale) as i32;
+            let margin_right = (20.0 * scale) as i32;
+            let x = monitor_pos.x + monitor_size.width as i32 - phys_w - margin_right;
+            let y = monitor_pos.y + monitor_size.height as i32 - phys_h - margin_bottom;
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        }
+
+        let _ = window.set_focus();
+        MINIMIZED.store(false, Ordering::SeqCst);
+        let _ = app.emit("minimize-state-changed", false);
+    }
+}
+
+fn toggle_mini(app: &tauri::AppHandle) {
+    let is_minimized = MINIMIZED.load(Ordering::SeqCst);
+    if is_minimized {
+        restore_window(app);
+    } else {
+        set_window_minimized(app);
     }
 }
 
@@ -27,11 +77,10 @@ pub fn run() {
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
 
-            // ── Open DevTools on startup (dev only) ──
             #[cfg(debug_assertions)]
             window.open_devtools();
 
-            // ── Position window at bottom-right of screen ──
+            // Position window at bottom-right of screen
             if let Some(monitor) = window.current_monitor().unwrap_or(None) {
                 let monitor_size = monitor.size();
                 let monitor_pos = monitor.position();
@@ -43,8 +92,6 @@ pub fn run() {
                 let phys_w = (win_width * scale) as i32;
                 let phys_h = (win_height * scale) as i32;
 
-                // Add margins to avoid taskbar and screen edge
-                // 60.0 approx height of taskbar (40-48px) + padding
                 let margin_bottom = 60.0;
                 let margin_right = 20.0;
 
@@ -57,7 +104,7 @@ pub fn run() {
                 let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
             }
 
-            // ── System tray ──
+            // System tray
             let show_hide = MenuItemBuilder::with_id("show_hide", "Show / Hide").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
 
@@ -77,7 +124,7 @@ pub fn run() {
                 .menu(&menu)
                 .tooltip("Close Chat")
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "show_hide" => toggle_window(app),
+                    "show_hide" => toggle_mini(app),
                     "quit" => {
                         app.exit(0);
                     }
@@ -90,22 +137,22 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        toggle_window(tray.app_handle());
+                        toggle_mini(tray.app_handle());
                     }
                 })
                 .build(app)?;
 
-            // ── Global shortcut: Ctrl+\ to toggle window ──
+            // Global shortcut: Ctrl+\ to toggle mini mode
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::Backslash);
             let handle = app.handle().clone();
             app.global_shortcut()
                 .on_shortcut(shortcut, move |_app, _shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
-                        toggle_window(&handle);
+                        toggle_mini(&handle);
                     }
                 })?;
 
-            // ── Prevent close from quitting — hide to tray instead ──
+            // Prevent close from quitting — hide to tray instead
             let window_for_event = app.get_webview_window("main").unwrap();
             let window_hide = window_for_event.clone();
             window_for_event.on_window_event(move |event| {
@@ -113,6 +160,18 @@ pub fn run() {
                     api.prevent_close();
                     let _ = window_hide.hide();
                 }
+            });
+
+            // Listen for minimize-window event from frontend
+            let app_handle = app.handle().clone();
+            app.listen("minimize-window", move |_event| {
+                set_window_minimized(&app_handle);
+            });
+
+            // Listen for restore-window event from frontend
+            let app_restore = app.handle().clone();
+            app.listen("restore-window", move |_event| {
+                restore_window(&app_restore);
             });
 
             Ok(())
