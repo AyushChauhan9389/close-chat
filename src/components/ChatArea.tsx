@@ -646,7 +646,6 @@ export default function ChatArea() {
       <footer id="footer">
         <div className="input-row">
           <div className="input-wrapper">
-            <div className="cursor-blink"></div>
             <input
               type="text"
               id="messageInput"

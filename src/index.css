@@ -1641,7 +1641,6 @@ body.light .emoji-close-btn:hover {
   justify-content: center;
   cursor: pointer;
   position: relative;
-  border-radius: 50%;
   background: #0a0a0a;
   transition: transform 0.15s ease, background 0.15s ease;
 }
