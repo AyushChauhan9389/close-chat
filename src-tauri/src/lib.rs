@@ -14,18 +14,24 @@ const MINI_SIZE: f64 = 48.0;
 
 fn set_window_minimized(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
         let scale = window.scale_factor().unwrap_or(1.0);
         let phys_size = (MINI_SIZE * scale) as i32;
+        let mini_size = tauri::PhysicalSize::new(phys_size, phys_size);
 
-        let _ = window.set_size(tauri::PhysicalSize::new(phys_size, phys_size));
+        let _ = window.unmaximize();
+        let _ = window.set_resizable(false);
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_size(mini_size);
 
-        // Position above taskbar (just above the bottom edge of screen)
+        // Position at top-right of the current monitor
         if let Some(monitor) = window.current_monitor().unwrap_or(None) {
             let monitor_size = monitor.size();
             let monitor_pos = monitor.position();
-            // Position at bottom center, above taskbar
-            let x = monitor_pos.x + (monitor_size.width as i32 - phys_size) / 2;
-            let y = monitor_pos.y + monitor_size.height as i32 - phys_size - 48; // 48px above taskbar
+            let margin_top = (20.0 * scale) as i32;
+            let margin_right = (20.0 * scale) as i32;
+            let x = monitor_pos.x + monitor_size.width as i32 - phys_size - margin_right;
+            let y = monitor_pos.y + margin_top;
             let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
         }
 
@@ -36,10 +42,12 @@ fn set_window_minimized(app: &tauri::AppHandle) {
 
 fn restore_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
         let scale = window.scale_factor().unwrap_or(1.0);
         let phys_w = (NORMAL_WIDTH * scale) as i32;
         let phys_h = (NORMAL_HEIGHT * scale) as i32;
 
+        let _ = window.set_resizable(true);
         let _ = window.set_size(tauri::PhysicalSize::new(phys_w, phys_h));
 
         if let Some(monitor) = window.current_monitor().unwrap_or(None) {
@@ -59,8 +67,20 @@ fn restore_window(app: &tauri::AppHandle) {
 }
 
 fn toggle_mini(app: &tauri::AppHandle) {
-    let is_minimized = MINIMIZED.load(Ordering::SeqCst);
-    if is_minimized {
+    if let Some(window) = app.get_webview_window("main") {
+        let is_visible = window.is_visible().unwrap_or(true);
+        if !is_visible {
+            let _ = window.show();
+            let _ = window.set_focus();
+
+            if MINIMIZED.load(Ordering::SeqCst) {
+                restore_window(app);
+            }
+            return;
+        }
+    }
+
+    if MINIMIZED.load(Ordering::SeqCst) {
         restore_window(app);
     } else {
         set_window_minimized(app);
