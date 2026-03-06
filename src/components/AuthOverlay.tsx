@@ -123,7 +123,6 @@ export default function AuthOverlay() {
             <div className="auth-field">
               <label className="auth-label" htmlFor="loginUser">&gt; username</label>
               <div className="auth-input-wrap">
-                <div className="auth-cursor"></div>
                 <input
                   type="text"
                   id="loginUser"
@@ -141,7 +140,6 @@ export default function AuthOverlay() {
             <div className="auth-field">
               <label className="auth-label" htmlFor="loginPass">&gt; password</label>
               <div className="auth-input-wrap">
-                <div className="auth-cursor"></div>
                 <input
                   type="password"
                   id="loginPass"
@@ -188,7 +186,6 @@ export default function AuthOverlay() {
             <div className="auth-field">
               <label className="auth-label" htmlFor="signupUser">&gt; username</label>
               <div className="auth-input-wrap">
-                <div className="auth-cursor"></div>
                 <input
                   type="text"
                   id="signupUser"
@@ -206,7 +203,6 @@ export default function AuthOverlay() {
             <div className="auth-field">
               <label className="auth-label" htmlFor="signupEmail">&gt; email</label>
               <div className="auth-input-wrap">
-                <div className="auth-cursor"></div>
                 <input
                   type="email"
                   id="signupEmail"
@@ -224,7 +220,6 @@ export default function AuthOverlay() {
             <div className="auth-field">
               <label className="auth-label" htmlFor="signupPass">&gt; password</label>
               <div className="auth-input-wrap">
-                <div className="auth-cursor"></div>
                 <input
                   type="password"
                   id="signupPass"
@@ -241,7 +236,6 @@ export default function AuthOverlay() {
             <div className="auth-field">
               <label className="auth-label" htmlFor="signupConfirm">&gt; confirm</label>
               <div className="auth-input-wrap">
-                <div className="auth-cursor"></div>
                 <input
                   type="password"
                   id="signupConfirm"

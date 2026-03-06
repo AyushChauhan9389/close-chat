@@ -1,8 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { getCurrentWindow, LogicalSize, PhysicalPosition } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
 import { useApp } from './context/AppContext';
 import AuthOverlay from './components/AuthOverlay';
 import Sidebar from './components/Sidebar';
@@ -274,14 +272,5 @@ function AppContent() {
 }
 
 export default function App() {
-  useEffect(() => {
-    check().then((update) => {
-      if (update) {
-        console.log(`Update available: ${update.version}`);
-        update.downloadAndInstall().then(() => relaunch()).catch(console.error);
-      }
-    }).catch(console.error);
-  }, []);
-
   return <AppContent />;
 }

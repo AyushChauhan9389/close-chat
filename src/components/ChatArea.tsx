@@ -55,6 +55,8 @@ export default function ChatArea() {
     loadChannels,
     loadChannelMembers,
     channelMembers,
+    addMemberByUsername,
+    removeMemberFromActiveChannel,
     switchToChannel,
     usernameStyle,
     hasMore,
@@ -253,7 +255,7 @@ export default function ChatArea() {
       case '/add':
         if (parts.length > 1 && activeChannelId) {
           const username = parts[1].replace(/^@/, '');
-          handleAddMember(username);
+          addMemberByUsername(username);
         } else {
           addMessage('', 'system: Usage: /add <username>', 'system');
         }
@@ -262,7 +264,7 @@ export default function ChatArea() {
       case '/kick':
         if (parts.length > 1 && activeChannelId) {
           const username = parts[1].replace(/^@/, '');
-          handleKickMember(username);
+          removeMemberFromActiveChannel(username);
         } else {
           addMessage('', 'system: Usage: /kick <username>', 'system');
         }
@@ -290,7 +292,7 @@ export default function ChatArea() {
         return true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChannelId, currentUser, addMessage, clearMessages, loadChannels, setCurrentUser, switchToChannel, channelMembers, channels, loadChannelMembers]);
+  }, [activeChannelId, currentUser, addMemberByUsername, addMessage, clearMessages, loadChannels, removeMemberFromActiveChannel, setCurrentUser, switchToChannel, channelMembers, channels, loadChannelMembers]);
 
   // ── Command helper functions ──
   async function handleJoinChannel(name: string) {
@@ -392,43 +394,6 @@ export default function ChatArea() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
       addMessage('', `system: Failed to revoke invite: ${message}`, 'system');
-    }
-  }
-
-  async function handleAddMember(username: string) {
-    if (!activeChannelId) return;
-    try {
-      const results = await api.searchUsers(username);
-      const exact = results.find((u) => u.username.toLowerCase() === username.toLowerCase());
-      if (!exact) {
-        addMessage('', `system: User @${username} not found`, 'system');
-        return;
-      }
-      await api.addMember(activeChannelId, exact.id);
-      addMessage('', `system: @${exact.username} added to the channel`, 'system');
-      loadChannelMembers();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      addMessage('', `system: Failed to add @${username}: ${message}`, 'system');
-    }
-  }
-
-  async function handleKickMember(username: string) {
-    if (!activeChannelId) return;
-    try {
-      const member = channelMembers.find(
-        (m) => m.username.toLowerCase() === username.toLowerCase()
-      );
-      if (!member) {
-        addMessage('', `system: @${username} is not a member of this channel`, 'system');
-        return;
-      }
-      await api.removeMember(activeChannelId, member.id);
-      addMessage('', `system: @${member.username} removed from the channel`, 'system');
-      loadChannelMembers();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      addMessage('', `system: Failed to kick @${username}: ${message}`, 'system');
     }
   }
 

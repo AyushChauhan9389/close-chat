@@ -1,24 +1,11 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Channel, ChannelMember } from '../lib/api';
-import * as api from '../lib/api';
-import { connectWs, disconnectWs, sendWs, onWs, isWsConnected } from '../lib/ws';
-
-// ── Message types for the chat area ──
-export type MessageType = 'user' | 'bot' | 'system';
-
-export type UsernameStyle = 'geist-square' | 'geist-grid' | 'geist-circle' | 'geist-triangle' | 'geist-line' | 'traditional';
-
-export type DisplayMode = 'compact' | 'fullscreen';
-
-export interface ChatMessage {
-  id: string;
-  username: string;
-  text: string;
-  type: MessageType;
-  timestamp: string;
-  date: string; // YYYY-MM-DD local date
-}
+import { useChatState } from './useChatState';
+import { useRealtimeLifecycle } from './useRealtimeLifecycle';
+import { useUiState } from './useUiState';
+import type { ChatMessage, DisplayMode, MessageType, UsernameStyle } from './chatUtils';
+export type { ChatMessage, DisplayMode, MessageType, UsernameStyle } from './chatUtils';
 
 // ── Context shape ──
 interface AppContextValue {
@@ -75,6 +62,9 @@ interface AppContextValue {
   loadChannels: () => Promise<void>;
   loadUsers: () => Promise<void>;
   loadChannelMembers: () => Promise<void>;
+  addMemberByUsername: (username: string) => Promise<void>;
+  addMemberToActiveChannel: (user: User) => Promise<void>;
+  removeMemberFromActiveChannel: (username: string) => Promise<void>;
   switchToChannel: (ch: Channel) => Promise<void>;
 
   // WebSocket
@@ -96,543 +86,74 @@ export function useApp(): AppContextValue {
   return ctx;
 }
 
-// ── Helpers ──
-function getTimestamp(date?: Date | string): string {
-  const d = date ? new Date(date) : new Date();
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const s = String(d.getSeconds()).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
-
-function getDateStr(date?: Date | string): string {
-  const d = date ? new Date(date) : new Date();
-  const y = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${mo}-${day}`;
-}
-
-let msgIdCounter = 0;
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Auth
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const isAuthenticated = currentUser !== null;
 
-  // Theme
-  const [isDark, setIsDark] = useState(true);
-  const toggleTheme = useCallback(() => {
-    setIsDark((prev) => {
-      const next = !prev;
-      if (next) {
-        document.body.classList.remove('light');
-      } else {
-        document.body.classList.add('light');
-      }
-      return next;
-    });
-  }, []);
-
-  // Minimized state
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [prevDisplayMode, setPrevDisplayMode] = useState<DisplayMode>('compact');
-
-  // Sidebar
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => {
-      const next = !prev;
-      document.body.classList.toggle('sidebar-open', next);
-      return next;
-    });
-  }, []);
-
-  // People panel
-  const [peopleOpen, setPeopleOpen] = useState(false);
-  const togglePeople = useCallback(() => {
-    setPeopleOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        document.body.classList.add('people-open');
-      } else {
-        document.body.classList.remove('people-open');
-      }
-      return next;
-    });
-  }, []);
-
-  // Channels
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [activeChannelId, setActiveChannelId] = useState<number | string | null>(null);
-  const activeChannel = channels.find((c) => c.id === activeChannelId) || null;
-
-  // Users & Members
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [channelMembers, setChannelMembers] = useState<ChannelMember[]>([]);
-  const myRoleInChannel = channelMembers.find((m) => currentUser && m.id === currentUser.id)?.role || null;
-
-  // Messages
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  // Pagination
-  const [hasMore, setHasMore] = useState(false);
-  const [oldestMessageApiId, setOldestMessageApiId] = useState<string | null>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  // Settings
-  const [usernameStyle, setUsernameStyleState] = useState<UsernameStyle>(() => {
-    return (localStorage.getItem('closechat_username_style') as UsernameStyle) || 'geist-square';
+  const uiState = useUiState();
+  const chatState = useChatState({
+    currentUser,
+    displayMode: uiState.displayMode,
+    setSidebarOpen: uiState.setSidebarOpen,
+  });
+  const { initApp } = useRealtimeLifecycle({
+    isAuthenticated,
+    currentUserRef: chatState.currentUserRef,
+    activeChannelIdRef: chatState.activeChannelIdRef,
+    channelsRef: chatState.channelsRef,
+    addMessage: chatState.addMessage,
+    loadChannels: chatState.loadChannels,
+    loadUsers: chatState.loadUsers,
+    setChannels: chatState.setChannels,
+    setAllUsers: chatState.setAllUsers,
   });
 
-  const setUsernameStyle = useCallback((style: UsernameStyle) => {
-    setUsernameStyleState(style);
-    localStorage.setItem('closechat_username_style', style);
-  }, []);
-
-  // Display mode
-  const [displayMode, setDisplayModeState] = useState<DisplayMode>(() => {
-    return (localStorage.getItem('closechat_display_mode') as DisplayMode) || 'compact';
-  });
-
-  const setDisplayMode = useCallback((mode: DisplayMode) => {
-    setDisplayModeState(mode);
-    localStorage.setItem('closechat_display_mode', mode);
-    document.body.classList.toggle('fullscreen', mode === 'fullscreen');
-    if (mode === 'fullscreen') {
-      document.body.classList.add('sidebar-open');
-      setSidebarOpen(true);
-    } else {
-      document.body.classList.remove('sidebar-open');
-      document.body.classList.remove('people-open');
-      setSidebarOpen(false);
-    }
-  }, []);
-
-  // Apply persisted display mode on initial mount
-  useEffect(() => {
-    const saved = localStorage.getItem('closechat_display_mode') as DisplayMode;
-    if (saved === 'fullscreen') {
-      document.body.classList.add('fullscreen');
-      document.body.classList.add('sidebar-open');
-      setSidebarOpen(true);
-    }
-  }, []);
-
-  const addMessage = useCallback((username: string, text: string, type: MessageType = 'user', timestamp?: string, date?: string) => {
-    const msg: ChatMessage = {
-      id: String(++msgIdCounter),
-      username,
-      text,
-      type,
-      timestamp: timestamp || getTimestamp(),
-      date: date || getDateStr(),
-    };
-    setMessages((prev) => [...prev, msg]);
-  }, []);
-
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-  }, []);
-
-  // Refs for stable access in WS handlers
-  const currentUserRef = useRef(currentUser);
-  currentUserRef.current = currentUser;
-  const activeChannelIdRef = useRef(activeChannelId);
-  activeChannelIdRef.current = activeChannelId;
-  const channelsRef = useRef(channels);
-  channelsRef.current = channels;
-  const allUsersRef = useRef(allUsers);
-  allUsersRef.current = allUsers;
-  const displayModeRef = useRef(displayMode);
-  displayModeRef.current = displayMode;
-
-  // ── Channel operations ──
-  const loadChannels = useCallback(async () => {
-    try {
-      const [chans, dms] = await Promise.all([api.listChannels(), api.listDms()]);
-
-      const dmChannels: Channel[] = dms.map((dm) => ({
-        id: dm.id,
-        name: dm.name,
-        type: dm.type,
-        lastMessage: dm.lastMessage,
-        unreadCount: dm.unreadCount,
-        recipient: dm.recipient,
-      }));
-
-      const allIds = new Set<number>();
-      const merged: Channel[] = [];
-
-      for (const ch of chans) {
-        if (!allIds.has(ch.id)) {
-          allIds.add(ch.id);
-          if (ch.type === 'dm') {
-            const dmInfo = dms.find((d) => d.id === ch.id);
-            if (dmInfo) ch.recipient = dmInfo.recipient;
-          }
-          merged.push(ch);
-        }
-      }
-
-      for (const dm of dmChannels) {
-        if (!allIds.has(dm.id)) {
-          allIds.add(dm.id);
-          merged.push(dm);
-        }
-      }
-
-      setChannels(merged);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      addMessage('', `system: Failed to load channels: ${message}`, 'system');
-    }
-  }, [addMessage]);
-
-  const loadUsers = useCallback(async () => {
-    try {
-      const users = await api.listUsers();
-      setAllUsers(users);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      addMessage('', `system: Failed to load users: ${message}`, 'system');
-    }
-  }, [addMessage]);
-
-  const loadChannelMembers = useCallback(async () => {
-    const chId = activeChannelIdRef.current;
-    if (!chId) return;
-    try {
-      const members = await api.getChannelMembers(chId);
-      setChannelMembers(members);
-    } catch {
-      setChannelMembers([]);
-    }
-  }, []);
-
-  const switchToChannel = useCallback(async (ch: Channel) => {
-    setActiveChannelId(ch.id);
-
-    // Mark as read
-    api.markChannelRead(ch.id).catch(() => {});
-
-    // Subscribe via WebSocket
-    if (isWsConnected()) {
-      sendWs({ type: 'join-channel', channelId: ch.id });
-    }
-
-    // Clear and load messages
-    setMessages([]);
-    setHasMore(false);
-    setOldestMessageApiId(null);
-    setIsLoadingMore(false);
-
-    const displayName = ch.type === 'dm'
-      ? (ch.recipient ? `@${ch.recipient.username}` : `@${ch.name}`)
-      : `#${ch.name}`;
-
-    const systemMsg: ChatMessage = {
-      id: String(++msgIdCounter),
-      username: '',
-      text: `system: switched to ${displayName}`,
-      type: 'system',
-      timestamp: getTimestamp(),
-      date: getDateStr(),
-    };
-
-    try {
-      const { messages: apiMessages, hasMore: initialHasMore } = await api.getMessages(ch.id, { limit: 50 });
-      const chronological = [...apiMessages].reverse();
-      const rendered: ChatMessage[] = chronological.map((msg) => ({
-        id: String(++msgIdCounter),
-        username: msg.senderUsername || 'unknown',
-        text: msg.content || '',
-        type: msg.type || 'user',
-        timestamp: getTimestamp(msg.createdAt),
-        date: getDateStr(msg.createdAt),
-      }));
-      setMessages([systemMsg, ...rendered]);
-      setHasMore(initialHasMore);
-      // oldest = last item in newest-first array
-      setOldestMessageApiId(apiMessages.length > 0 ? String(apiMessages[apiMessages.length - 1].id) : null);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      setMessages([
-        systemMsg,
-        {
-          id: String(++msgIdCounter),
-          username: '',
-          text: `system: Failed to load messages: ${message}`,
-          type: 'system',
-          timestamp: getTimestamp(),
-          date: getDateStr(),
-        },
-      ]);
-    }
-
-    // Close sidebar after switching (compact mode only)
-    if (displayModeRef.current === 'compact') {
-      setSidebarOpen(false);
-      document.body.classList.remove('sidebar-open');
-    }
-  }, []);
-
-  // ── Load older messages (pagination) ──
-  const loadMoreMessages = useCallback(async () => {
-    const chId = activeChannelIdRef.current;
-    if (!chId || !hasMore || isLoadingMore || !oldestMessageApiId) return;
-
-    setIsLoadingMore(true);
-    try {
-      const { messages: apiMessages, hasMore: moreRemaining } =
-        await api.getMessages(chId, { limit: 50, before: oldestMessageApiId });
-
-      // Channel switched while fetching — discard stale results
-      if (activeChannelIdRef.current !== chId) return;
-
-      if (apiMessages.length === 0) {
-        setHasMore(false);
-        return;
-      }
-
-      const chronological = [...apiMessages].reverse();
-      const newOldestApiId = String(apiMessages[apiMessages.length - 1].id);
-
-      const rendered: ChatMessage[] = chronological.map((msg) => ({
-        id: String(++msgIdCounter),
-        username: msg.senderUsername || 'unknown',
-        text: msg.content || '',
-        type: msg.type || 'user',
-        timestamp: getTimestamp(msg.createdAt),
-        date: getDateStr(msg.createdAt),
-      }));
-
-      // Preserve system message at index 0, prepend older messages after it
-      setMessages((prev) => {
-        const [sysMsg, ...rest] = prev;
-        return [sysMsg, ...rendered, ...rest];
-      });
-      setHasMore(moreRemaining);
-      setOldestMessageApiId(newOldestApiId);
-    } catch (err) {
-      console.error('loadMoreMessages failed:', err);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [hasMore, isLoadingMore, oldestMessageApiId]);
-
-  // ── Send message ──
-  const sendChatMessage = useCallback((text: string) => {
-    const chId = activeChannelIdRef.current;
-    if (!chId) {
-      addMessage('', 'system: No channel selected. Use /join <channel> or pick one from sidebar.', 'system');
-      return;
-    }
-
-    const user = currentUserRef.current;
-    const displayName = user ? `@${user.username}` : '@anon';
-
-    // Optimistic UI
-    addMessage(displayName, text, 'user');
-
-    if (isWsConnected()) {
-      sendWs({
-        type: 'message',
-        channelId: chId,
-        content: text,
-      });
-    } else {
-      api.sendMessage(chId, text).catch((err: Error) => {
-        addMessage('', `system: Failed to send: ${err.message}`, 'system');
-      });
-    }
-  }, [addMessage]);
-
-  // ── WebSocket handlers ──
-  const wsSetupRef = useRef(false);
-
-  const initApp = useCallback(async () => {
-    if (!wsSetupRef.current) {
-      wsSetupRef.current = true;
-
-      onWs('message', (msg) => {
-        const data = msg.data;
-        const channelId = data.channelId as number | string;
-        const senderId = data.senderId as number;
-        const senderUsername = (data.senderUsername as string) || 'unknown';
-        const content = (data.content as string) || '';
-        const ts = (data.timestamp as string) || (data.createdAt as string);
-
-        if (channelId === activeChannelIdRef.current) {
-          const user = currentUserRef.current;
-          if (!user || senderId !== user.id) {
-            const timeStr = ts ? getTimestamp(ts) : undefined;
-            addMessage(senderUsername, content, (data.messageType as MessageType) || 'user', timeStr);
-            const msgId = data.id as number;
-            if (isWsConnected()) {
-              sendWs({ type: 'mark-read', channelId, messageId: msgId });
-            } else {
-              api.markChannelRead(channelId).catch(() => {});
-            }
-            setChannels((prev) =>
-              prev.map((c) => (c.id === channelId ? { ...c, unreadCount: 0 } : c))
-            );
-          }
-        }
-
-        // Update sidebar unread for non-active channels
-        if (channelId !== activeChannelIdRef.current) {
-          setChannels((prev) =>
-            prev.map((c) => {
-              if (c.id === channelId) {
-                return {
-                  ...c,
-                  unreadCount: (c.unreadCount || 0) + 1,
-                  lastMessage: {
-                    content,
-                    senderId,
-                    senderUsername,
-                    createdAt: ts || new Date().toISOString(),
-                  },
-                };
-              }
-              return c;
-            })
-          );
-        }
-      });
-
-      onWs('presence', (msg) => {
-        const data = msg.data;
-        if (data.status === 'connected') {
-          addMessage('', 'system: connected to mesh', 'system');
-          api.updateMe({ status: 'online' }).catch(() => {});
-        }
-      });
-
-      onWs('connected', () => {
-        channelsRef.current.forEach((ch) => {
-          sendWs({ type: 'join-channel', channelId: ch.id });
-        });
-      });
-
-      onWs('status-changed', (msg) => {
-        const data = msg.data;
-        if (data.userId) {
-          setAllUsers((prev) =>
-            prev.map((u) =>
-              u.id === (data.userId as number) ? { ...u, status: data.status as string } : u
-            )
-          );
-        }
-      });
-
-      onWs('user-joined', (msg) => {
-        const data = msg.data;
-        if (data.channelId === activeChannelIdRef.current) {
-          const username = (data.user as { username: string })?.username || (data.username as string) || 'unknown';
-          addMessage('', `system: @${username} joined`, 'system');
-        }
-      });
-
-      onWs('user-left', (msg) => {
-        const data = msg.data;
-        if (data.channelId === activeChannelIdRef.current) {
-          addMessage('', 'system: user left', 'system');
-        }
-      });
-
-      onWs('channel_update', () => {
-        loadChannels();
-      });
-    }
-
-    connectWs();
-    await Promise.all([loadChannels(), loadUsers()]);
-  }, [addMessage, loadChannels, loadUsers]);
-
-  // ── Idle/online on focus/blur ──
-  useEffect(() => {
-    const handleBlur = () => {
-      if (currentUserRef.current) {
-        api.updateMe({ status: 'idle' }).catch(() => {});
-      }
-    };
-    const handleFocus = () => {
-      if (currentUserRef.current) {
-        api.updateMe({ status: 'online' }).catch(() => {});
-      }
-    };
-    const handleUnload = () => {
-      if (currentUserRef.current) {
-        api.updateMe({ status: 'offline' }).catch(() => {});
-      }
-      disconnectWs();
-    };
-
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('beforeunload', handleUnload);
-
-    return () => {
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, []);
-
-  // Periodic user refresh
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const interval = setInterval(() => {
-      loadUsers();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated, loadUsers]);
-
-  const value: AppContextValue = {
+  const value = useMemo<AppContextValue>(() => ({
     currentUser,
     setCurrentUser,
     isAuthenticated,
-    isDark,
-    toggleTheme,
-    isMinimized,
-    setIsMinimized,
-    prevDisplayMode,
-    setPrevDisplayMode,
-    sidebarOpen,
-    setSidebarOpen,
-    toggleSidebar,
-    peopleOpen,
-    setPeopleOpen,
-    togglePeople,
-    channels,
-    setChannels,
-    activeChannelId,
-    setActiveChannelId,
-    activeChannel,
-    allUsers,
-    setAllUsers,
-    channelMembers,
-    setChannelMembers,
-    myRoleInChannel,
-    messages,
-    addMessage,
-    clearMessages,
-    hasMore,
-    isLoadingMore,
-    loadMoreMessages,
-    loadChannels,
-    loadUsers,
-    loadChannelMembers,
-    switchToChannel,
+    isDark: uiState.isDark,
+    toggleTheme: uiState.toggleTheme,
+    isMinimized: uiState.isMinimized,
+    setIsMinimized: uiState.setIsMinimized,
+    prevDisplayMode: uiState.prevDisplayMode,
+    setPrevDisplayMode: uiState.setPrevDisplayMode,
+    sidebarOpen: uiState.sidebarOpen,
+    setSidebarOpen: uiState.setSidebarOpen,
+    toggleSidebar: uiState.toggleSidebar,
+    peopleOpen: uiState.peopleOpen,
+    setPeopleOpen: uiState.setPeopleOpen,
+    togglePeople: uiState.togglePeople,
+    channels: chatState.channels,
+    setChannels: chatState.setChannels,
+    activeChannelId: chatState.activeChannelId,
+    setActiveChannelId: chatState.setActiveChannelId,
+    activeChannel: chatState.activeChannel,
+    allUsers: chatState.allUsers,
+    setAllUsers: chatState.setAllUsers,
+    channelMembers: chatState.channelMembers,
+    setChannelMembers: chatState.setChannelMembers,
+    myRoleInChannel: chatState.myRoleInChannel,
+    messages: chatState.messages,
+    addMessage: chatState.addMessage,
+    clearMessages: chatState.clearMessages,
+    hasMore: chatState.hasMore,
+    isLoadingMore: chatState.isLoadingMore,
+    loadMoreMessages: chatState.loadMoreMessages,
+    loadChannels: chatState.loadChannels,
+    loadUsers: chatState.loadUsers,
+    loadChannelMembers: chatState.loadChannelMembers,
+    addMemberByUsername: chatState.addMemberByUsername,
+    addMemberToActiveChannel: chatState.addMemberToActiveChannel,
+    removeMemberFromActiveChannel: chatState.removeMemberFromActiveChannel,
+    switchToChannel: chatState.switchToChannel,
     initApp,
-    sendChatMessage,
-    usernameStyle,
-    setUsernameStyle,
-    displayMode,
-    setDisplayMode,
-  };
+    sendChatMessage: chatState.sendChatMessage,
+    usernameStyle: uiState.usernameStyle,
+    setUsernameStyle: uiState.setUsernameStyle,
+    displayMode: uiState.displayMode,
+    setDisplayMode: uiState.setDisplayMode,
+  }), [chatState, currentUser, initApp, isAuthenticated, uiState]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
