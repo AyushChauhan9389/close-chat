@@ -20,8 +20,8 @@ export default function PeoplePanel() {
     channelMembers,
     myRoleInChannel,
     activeChannelId,
-    addMessage,
-    loadChannelMembers,
+    addMemberToActiveChannel,
+    removeMemberFromActiveChannel,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,33 +85,12 @@ export default function PeoplePanel() {
 
   function handleKick(username: string) {
     if (!activeChannelId) return;
-    const member = channelMembers.find(
-      (m) => m.username.toLowerCase() === username.toLowerCase()
-    );
-    if (!member) {
-      addMessage('', `system: @${username} is not a member of this channel`, 'system');
-      return;
-    }
-    api.removeMember(activeChannelId, member.id)
-      .then(() => {
-        addMessage('', `system: @${member.username} removed from the channel`, 'system');
-        loadChannelMembers();
-      })
-      .catch((err: Error) => {
-        addMessage('', `system: Failed to kick @${username}: ${err.message}`, 'system');
-      });
+    void removeMemberFromActiveChannel(username);
   }
 
   function handleAddFromSearch(user: User) {
     if (!activeChannelId) return;
-    api.addMember(activeChannelId, user.id)
-      .then(() => {
-        addMessage('', `system: @${user.username} added to the channel`, 'system');
-        loadChannelMembers();
-      })
-      .catch((err: Error) => {
-        addMessage('', `system: Failed to add @${user.username}: ${err.message}`, 'system');
-      });
+    void addMemberToActiveChannel(user);
   }
 
   return (
