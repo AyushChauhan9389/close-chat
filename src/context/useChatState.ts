@@ -96,9 +96,9 @@ export function useChatState({ currentUser, displayMode, setSidebarOpen }: UseCh
       setChannels(merged);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
-      addMessage('', `system: Failed to load channels: ${message}`, 'system');
+      console.error('loadChannels failed:', message);
     }
-  }, [addMessage]);
+  }, []);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -106,9 +106,9 @@ export function useChatState({ currentUser, displayMode, setSidebarOpen }: UseCh
       setAllUsers(users);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
-      addMessage('', `system: Failed to load users: ${message}`, 'system');
+      console.error('loadUsers failed:', message);
     }
-  }, [addMessage]);
+  }, []);
 
   const loadChannelMembers = useCallback(async () => {
     const channelId = activeChannelIdRef.current;
