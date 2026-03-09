@@ -22,6 +22,7 @@ fn set_window_minimized(app: &tauri::AppHandle) {
         let _ = window.unmaximize();
         let _ = window.set_resizable(false);
         let _ = window.set_always_on_top(true);
+        let _ = window.set_skip_taskbar(true);
         let _ = window.set_size(mini_size);
 
         // Position at top-right of the current monitor
@@ -48,6 +49,7 @@ fn restore_window(app: &tauri::AppHandle) {
         let phys_h = (NORMAL_HEIGHT * scale) as i32;
 
         let _ = window.set_resizable(true);
+        let _ = window.set_skip_taskbar(false);
         let _ = window.set_size(tauri::PhysicalSize::new(phys_w, phys_h));
 
         if let Some(monitor) = window.current_monitor().unwrap_or(None) {
@@ -99,6 +101,8 @@ pub fn run() {
 
             #[cfg(debug_assertions)]
             window.open_devtools();
+
+            let _ = window.set_skip_taskbar(false);
 
             // Position window at bottom-right of screen
             if let Some(monitor) = window.current_monitor().unwrap_or(None) {
