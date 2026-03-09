@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useApp } from '../context/AppContext';
 import Ascii3 from './ascii-3ring';
@@ -6,13 +6,20 @@ import Ascii3 from './ascii-3ring';
 export default function MiniView() {
   const { channels } = useApp();
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const prevUnreadRef = useRef(0);
 
   const totalUnread = channels.reduce((sum, ch) => sum + (ch.unreadCount || 0), 0);
 
   useEffect(() => {
-    if (totalUnread > 0) {
+    if (totalUnread > prevUnreadRef.current) {
       setHasNewMessage(true);
     }
+
+    if (totalUnread === 0) {
+      setHasNewMessage(false);
+    }
+
+    prevUnreadRef.current = totalUnread;
   }, [totalUnread]);
 
   const handleClick = async () => {

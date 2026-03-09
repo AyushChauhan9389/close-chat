@@ -59,6 +59,71 @@ export function useChatState({ currentUser, displayMode, setSidebarOpen }: UseCh
     setMessages([]);
   }, []);
 
+  const loadChannelMessages = useCallback(async (
+    channel: Channel,
+    options?: { markRead?: boolean },
+  ) => {
+    const shouldMarkRead = options?.markRead ?? true;
+
+    if (shouldMarkRead) {
+      api.markChannelRead(channel.id).catch(() => {});
+      setChannels((prev) =>
+        prev.map((existing) => (existing.id === channel.id ? { ...existing, unreadCount: 0 } : existing))
+      );
+    }
+
+    if (isWsConnected()) {
+      sendWs({ type: 'join-channel', channelId: channel.id });
+    }
+
+    setMessages([]);
+    setHasMore(false);
+    setOldestMessageApiId(null);
+    setIsLoadingMore(false);
+
+    const systemMsg: ChatMessage = {
+      id: nextMessageId(),
+      username: '',
+      text: `system: switched to ${getChannelDisplayName(channel)}`,
+      type: 'system',
+      timestamp: getTimestamp(),
+      date: getDateStr(),
+    };
+
+    try {
+      const { messages: apiMessages, hasMore: initialHasMore } = await api.getMessages(channel.id, { limit: 50 });
+
+      if (activeChannelIdRef.current !== channel.id) {
+        return;
+      }
+
+      const chronological = [...apiMessages].reverse();
+      const rendered: ChatMessage[] = chronological.map((message) => ({
+        id: nextMessageId(),
+        username: message.senderUsername || 'unknown',
+        text: message.content || '',
+        type: message.type || 'user',
+        timestamp: getTimestamp(message.createdAt),
+        date: getDateStr(message.createdAt),
+      }));
+
+      setMessages([systemMsg, ...rendered]);
+      setHasMore(initialHasMore);
+      setOldestMessageApiId(apiMessages.length > 0 ? String(apiMessages[apiMessages.length - 1].id) : null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'unknown error';
+
+      if (activeChannelIdRef.current !== channel.id) {
+        return;
+      }
+
+      setMessages([
+        systemMsg,
+        createChatMessage('', `system: Failed to load messages: ${message}`, 'system'),
+      ]);
+    }
+  }, []);
+
   const loadChannels = useCallback(async () => {
     try {
       const [listedChannels, dms] = await Promise.all([api.listChannels(), api.listDms()]);
@@ -179,64 +244,22 @@ export function useChatState({ currentUser, displayMode, setSidebarOpen }: UseCh
 
   const switchToChannel = useCallback(async (channel: Channel) => {
     setActiveChannelId(channel.id);
-
-    api.markChannelRead(channel.id).catch(() => {});
-
-    if (isWsConnected()) {
-      sendWs({ type: 'join-channel', channelId: channel.id });
-    }
-
-    setMessages([]);
-    setHasMore(false);
-    setOldestMessageApiId(null);
-    setIsLoadingMore(false);
-
-    const systemMsg: ChatMessage = {
-      id: nextMessageId(),
-      username: '',
-      text: `system: switched to ${getChannelDisplayName(channel)}`,
-      type: 'system',
-      timestamp: getTimestamp(),
-      date: getDateStr(),
-    };
-
-    try {
-      const { messages: apiMessages, hasMore: initialHasMore } = await api.getMessages(channel.id, { limit: 50 });
-
-      if (activeChannelIdRef.current !== channel.id) {
-        return;
-      }
-
-      const chronological = [...apiMessages].reverse();
-      const rendered: ChatMessage[] = chronological.map((message) => ({
-        id: nextMessageId(),
-        username: message.senderUsername || 'unknown',
-        text: message.content || '',
-        type: message.type || 'user',
-        timestamp: getTimestamp(message.createdAt),
-        date: getDateStr(message.createdAt),
-      }));
-
-      setMessages([systemMsg, ...rendered]);
-      setHasMore(initialHasMore);
-      setOldestMessageApiId(apiMessages.length > 0 ? String(apiMessages[apiMessages.length - 1].id) : null);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-
-      if (activeChannelIdRef.current !== channel.id) {
-        return;
-      }
-
-      setMessages([
-        systemMsg,
-        createChatMessage('', `system: Failed to load messages: ${message}`, 'system'),
-      ]);
-    }
+    await loadChannelMessages(channel, { markRead: true });
 
     if (displayModeRef.current === 'compact') {
       setSidebarOpen(false);
     }
-  }, [setSidebarOpen]);
+  }, [loadChannelMessages, setSidebarOpen]);
+
+  const reloadActiveChannel = useCallback(async (options?: { markRead?: boolean }) => {
+    const channelId = activeChannelIdRef.current;
+    if (!channelId) return;
+
+    const channel = channelsRef.current.find((existing) => existing.id === channelId);
+    if (!channel) return;
+
+    await loadChannelMessages(channel, options);
+  }, [loadChannelMessages]);
 
   const loadMoreMessages = useCallback(async () => {
     const channelId = activeChannelIdRef.current;
@@ -327,6 +350,7 @@ export function useChatState({ currentUser, displayMode, setSidebarOpen }: UseCh
     addMemberToActiveChannel,
     removeMemberFromActiveChannel,
     switchToChannel,
+    reloadActiveChannel,
     sendChatMessage,
     currentUserRef,
     activeChannelIdRef,

@@ -15,6 +15,8 @@ interface UseRealtimeLifecycleOptions {
   loadUsers: () => Promise<void>;
   setChannels: Dispatch<SetStateAction<Channel[]>>;
   setAllUsers: Dispatch<SetStateAction<User[]>>;
+  isMinimized: boolean;
+  reloadActiveChannel: (options?: { markRead?: boolean }) => Promise<void>;
 }
 
 export function useRealtimeLifecycle({
@@ -27,9 +29,13 @@ export function useRealtimeLifecycle({
   loadUsers,
   setChannels,
   setAllUsers,
+  isMinimized,
+  reloadActiveChannel,
 }: UseRealtimeLifecycleOptions) {
   const wsSetupRef = useRef(false);
   const unsubscribeHandlersRef = useRef<Array<() => void>>([]);
+  const isMinimizedRef = useRef(isMinimized);
+  isMinimizedRef.current = isMinimized;
 
   const initApp = useCallback(async () => {
     if (!wsSetupRef.current) {
@@ -43,27 +49,28 @@ export function useRealtimeLifecycle({
           const senderUsername = (data.senderUsername as string) || 'unknown';
           const content = (data.content as string) || '';
           const ts = (data.timestamp as string) || (data.createdAt as string);
+          const user = currentUserRef.current;
+          const isOwnMessage = !!user && senderId === user.id;
+          const isVisibleActiveChannel = !isMinimizedRef.current && channelId === activeChannelIdRef.current;
 
-          if (channelId === activeChannelIdRef.current) {
-            const user = currentUserRef.current;
-            if (!user || senderId !== user.id) {
-              const timeStr = ts ? getTimestamp(ts) : undefined;
-              addMessage(senderUsername, content, (data.messageType as MessageType) || 'user', timeStr);
-              const messageId = data.id as number;
+          if (isVisibleActiveChannel && !isOwnMessage) {
+            const timeStr = ts ? getTimestamp(ts) : undefined;
+            addMessage(senderUsername, content, (data.messageType as MessageType) || 'user', timeStr);
+            const messageId = data.id as number;
 
-              if (isWsConnected()) {
-                sendWs({ type: 'mark-read', channelId, messageId });
-              } else {
-                api.markChannelRead(channelId).catch(() => {});
-              }
-
-              setChannels((prev) =>
-                prev.map((channel) => (channel.id === channelId ? { ...channel, unreadCount: 0 } : channel))
-              );
+            if (isWsConnected()) {
+              sendWs({ type: 'mark-read', channelId, messageId });
+            } else {
+              api.markChannelRead(channelId).catch(() => {});
             }
+
+            setChannels((prev) =>
+              prev.map((channel) => (channel.id === channelId ? { ...channel, unreadCount: 0 } : channel))
+            );
+            return;
           }
 
-          if (channelId !== activeChannelIdRef.current) {
+          if (!isOwnMessage) {
             setChannels((prev) =>
               prev.map((channel) => {
                 if (channel.id === channelId) {
@@ -87,7 +94,7 @@ export function useRealtimeLifecycle({
           const data = msg.data;
           if (data.status === 'connected') {
             addMessage('', 'system: connected to mesh', 'system');
-            api.updateMe({ status: 'online' }).catch(() => {});
+            api.updateMe({ status: isMinimizedRef.current ? 'idle' : 'online' }).catch(() => {});
           }
         }),
         onWs('connected', () => {
@@ -145,7 +152,7 @@ export function useRealtimeLifecycle({
     };
 
     const handleFocus = () => {
-      if (currentUserRef.current) {
+      if (currentUserRef.current && !isMinimized) {
         api.updateMe({ status: 'online' }).catch(() => {});
       }
     };
@@ -166,7 +173,17 @@ export function useRealtimeLifecycle({
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('beforeunload', handleUnload);
     };
-  }, [currentUserRef]);
+  }, [currentUserRef, isMinimized]);
+
+  useEffect(() => {
+    if (!currentUserRef.current) return;
+
+    api.updateMe({ status: isMinimized ? 'idle' : 'online' }).catch(() => {});
+
+    if (!isMinimized) {
+      reloadActiveChannel({ markRead: true }).catch(() => {});
+    }
+  }, [currentUserRef, isMinimized, reloadActiveChannel]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

@@ -66,6 +66,7 @@ interface AppContextValue {
   addMemberToActiveChannel: (user: User) => Promise<void>;
   removeMemberFromActiveChannel: (username: string) => Promise<void>;
   switchToChannel: (ch: Channel) => Promise<void>;
+  reloadActiveChannel: (options?: { markRead?: boolean }) => Promise<void>;
 
   // WebSocket
   initApp: () => Promise<void>;
@@ -106,6 +107,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadUsers: chatState.loadUsers,
     setChannels: chatState.setChannels,
     setAllUsers: chatState.setAllUsers,
+    isMinimized: uiState.isMinimized,
+    reloadActiveChannel: chatState.reloadActiveChannel,
   });
 
   const value = useMemo<AppContextValue>(() => ({
@@ -147,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addMemberToActiveChannel: chatState.addMemberToActiveChannel,
     removeMemberFromActiveChannel: chatState.removeMemberFromActiveChannel,
     switchToChannel: chatState.switchToChannel,
+    reloadActiveChannel: chatState.reloadActiveChannel,
     initApp,
     sendChatMessage: chatState.sendChatMessage,
     usernameStyle: uiState.usernameStyle,
